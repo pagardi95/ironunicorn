@@ -8,9 +8,9 @@ import Onboarding from './components/Onboarding';
 import { AppRoute, UserStats, Lifts, WorkoutDay } from './types';
 import { generateUnicornAvatar, getStaticEvolutionImage } from './services/geminiService';
 import { MOCK_PLANS } from './constants';
-import { supabase } from './services/supabaseClient';
 
 const DEFAULT_STATS: UserStats = {
+  displayName: 'Legend',
   level: 1,
   xp: 0,
   streak: 0,
@@ -57,12 +57,13 @@ const App: React.FC = () => {
     }
   };
 
-  const handleOnboardingComplete = async (lifts: Lifts) => {
+  const handleOnboardingComplete = async (lifts: Lifts, name: string) => {
     const isStrong = lifts.squat >= (lifts.bodyweight * 1.2);
     const startLevel = isStrong ? 15 : 1;
     
     const newStats: UserStats = {
       ...stats,
+      displayName: name || 'Legend',
       lifts,
       onboardingComplete: true,
       isStrongStart: isStrong,
@@ -153,7 +154,7 @@ const App: React.FC = () => {
         return <WorkoutView stats={stats} onFinish={handleFinishWorkout} setRoute={setRoute} dayOverride={selectedWorkout} />;
       case AppRoute.LEVEL_100:
         return (
-          <div className="pt-40 px-6 text-center animate-in fade-in zoom-in duration-700">
+          <div className="pt-20 px-6 text-center animate-in fade-in zoom-in duration-700">
             <div className="text-9xl mb-12 drop-shadow-[0_0_50px_rgba(168,85,247,0.5)]">🦄</div>
             <h1 className="text-6xl font-oswald font-black uppercase tracking-tighter mb-6">
               IRON <span className="unicorn-text-gradient">UNICORN</span>

@@ -10,7 +10,7 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ currentRoute, setRoute, isLoggedIn }) => {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/10 px-6 py-4 flex justify-between items-center">
+    <nav className="sticky top-0 z-50 h-20 glass border-b border-white/10 px-6 flex justify-between items-center w-full">
       <div 
         className="flex items-center gap-2 cursor-pointer" 
         onClick={() => setRoute(AppRoute.LANDING)}

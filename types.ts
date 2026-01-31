@@ -53,6 +53,7 @@ export interface Challenge {
 }
 
 export interface UserStats {
+  displayName?: string;
   level: number;
   xp: number;
   streak: number;

@@ -10,7 +10,7 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStart, setRoute }) => {
   return (
-    <div className="pt-24 pb-20 overflow-x-hidden">
+    <div className="pt-8 pb-20 overflow-x-hidden">
       {/* Hero Section */}
       <section className="px-6 max-w-6xl mx-auto text-center py-20">
         <div className="inline-block px-4 py-1 rounded-full border border-purple-500/30 text-purple-400 text-xs font-bold uppercase tracking-widest mb-6 bg-purple-500/5">

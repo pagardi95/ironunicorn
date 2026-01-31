@@ -57,7 +57,7 @@ const WorkoutView: React.FC<WorkoutViewProps> = ({ stats, onFinish, setRoute, da
   }
 
   return (
-    <div className="pt-24 pb-20 px-6 max-w-2xl mx-auto space-y-8 animate-in slide-in-from-right duration-300">
+    <div className="pt-8 pb-20 px-6 max-w-2xl mx-auto space-y-8 animate-in slide-in-from-right duration-300">
       <header className="flex justify-between items-end">
         <div>
           <h2 className="text-sm text-purple-400 font-bold uppercase tracking-widest">{currentPlan.title}</h2>
