@@ -13,13 +13,14 @@ interface DashboardProps {
   onSelectWorkout: (day: WorkoutDay) => void;
 }
 
-// Fixed: Inline the interface to avoid "Subsequent property declarations must have the same type" error.
+// Fixed: Define AIStudio interface and use it in Window augmentation to match the pre-existing global type.
 declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
   interface Window {
-    aistudio?: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
+    aistudio?: AIStudio;
   }
 }
 
@@ -28,6 +29,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [previewDay, setPreviewDay] = useState<WorkoutDay | null>(null);
   const [isKeySelected, setIsKeySelected] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const checkKeyStatus = async () => {
     if (window.aistudio) {
@@ -43,8 +45,9 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
   const handleOpenKeySelector = async () => {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
-      // Assume success after triggering dialog per instructions
+      // Per instructions: assume success after triggering the dialog
       setIsKeySelected(true);
+      setErrorMessage(null);
       refreshAvatar();
     }
   };
@@ -52,26 +55,36 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
   const refreshAvatar = async () => {
     if (avatarLoading) return;
     setAvatarLoading(true);
+    setErrorMessage(null);
     try {
       const url = await generateUnicornAvatar(stats);
       if (url) {
         onUpdateStats({ avatarUrl: url });
       } else {
-        console.log("Avatar generation returned null. Checking key status...");
-        await checkKeyStatus();
+        // If it returns null without throwing, usually a generation failure but not a quota error
+        setErrorMessage("Generierung fehlgeschlagen. Versuche es später erneut.");
       }
     } catch (e: any) {
-      // Guidelines: If the request fails with "Requested entity was not found.", 
-      // reset key selection state and prompt for key via openSelectKey
-      if (e?.message?.includes("Requested entity was not found.")) {
+      const errorMsg = e?.message || String(e);
+      console.error("Avatar refresh failed:", errorMsg);
+
+      // Handle Quota/Billing errors specifically
+      if (errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED") || errorMsg.includes("billing")) {
+        setErrorMessage("Quota erschöpft oder kein Billing aktiv. Ein eigener API-Key ist erforderlich.");
+        setIsKeySelected(false);
+        // Automatically prompt for key selection if possible
+        if (window.aistudio) {
+          handleOpenKeySelector();
+        }
+      } else if (errorMsg.includes("Requested entity was not found")) {
+        // Reset key state per guidelines
         setIsKeySelected(false);
         if (window.aistudio) {
-          await window.aistudio.openSelectKey();
-          // After triggering selector, assume success per guidelines
-          setIsKeySelected(true);
+          handleOpenKeySelector();
         }
+      } else {
+        setErrorMessage("Ein Fehler ist aufgetreten.");
       }
-      console.error("Avatar refresh failed", e);
     } finally {
       setAvatarLoading(false);
     }
@@ -137,14 +150,14 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
                   ) : (
                     <div className="text-center p-6 flex flex-col items-center gap-4">
                       <i className="fa-solid fa-wand-magic-sparkles text-5xl text-white/10"></i>
-                      <div>
-                        <p className="text-xs text-gray-500 uppercase font-bold mb-3">Avatar nicht bereit</p>
-                        {window.aistudio && !isKeySelected ? (
+                      <div className="space-y-4">
+                        <p className="text-xs text-gray-400 font-bold px-4">{errorMessage || "Avatar nicht bereit"}</p>
+                        {window.aistudio && (!isKeySelected || errorMessage?.includes("Quota")) ? (
                           <button 
                             onClick={handleOpenKeySelector}
-                            className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] uppercase font-black transition-all shadow-lg"
+                            className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] uppercase font-black transition-all shadow-lg"
                           >
-                            <i className="fa-solid fa-key mr-2"></i> API Key einrichten
+                            <i className="fa-solid fa-key mr-2"></i> Eigenen Key auswählen
                           </button>
                         ) : (
                           <button 
@@ -156,7 +169,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
                         )}
                       </div>
                       <p className="text-[9px] text-gray-600 max-w-[150px]">
-                        Tipp: Für die Bildgenerierung ist ein gültiger API-Key erforderlich.
+                        Tipp: Besuche <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline">ai.google.dev/billing</a> für Infos zum API-Key.
                       </p>
                     </div>
                   )}
