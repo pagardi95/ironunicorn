@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard';
 import WorkoutView from './components/WorkoutView';
 import Onboarding from './components/Onboarding';
 import { AppRoute, UserStats, Lifts, WorkoutDay } from './types';
-import { generateUnicornAvatar } from './services/geminiService';
+import { generateUnicornAvatar, getStaticEvolutionImage } from './services/geminiService';
 import { MOCK_PLANS } from './constants';
 import { supabase } from './services/supabaseClient';
 
@@ -36,7 +36,6 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('unicorn_stats');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Sicherstellen, dass die Struktur passt
         return { ...DEFAULT_STATS, ...parsed };
       }
     } catch (e) {
@@ -45,60 +44,9 @@ const App: React.FC = () => {
     return DEFAULT_STATS;
   });
 
-  // Supabase Sync Logic
   useEffect(() => {
-    const syncData = async () => {
-      localStorage.setItem('unicorn_stats', JSON.stringify(stats));
-      
-      if (supabase && stats.onboardingComplete) {
-        try {
-          const { error } = await supabase
-            .from('profiles')
-            .upsert({ 
-              id: '00000000-0000-0000-0000-000000000000', 
-              level: stats.level,
-              xp: stats.xp,
-              lifts: stats.lifts,
-              evolution: stats.evolution
-            });
-          if (error) console.warn('Supabase Sync Hinweis:', error.message);
-        } catch (e) {
-          console.error("Supabase Sync fehlgeschlagen:", e);
-        }
-      }
-    };
-    syncData();
+    localStorage.setItem('unicorn_stats', JSON.stringify(stats));
   }, [stats]);
-
-  // Initiales Laden von Supabase
-  useEffect(() => {
-    const loadFromCloud = async () => {
-      if (supabase) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', '00000000-0000-0000-0000-000000000000')
-            .maybeSingle(); // maybeSingle verhindert Fehler bei leerer DB
-          
-          if (data && !error) {
-            setStats(prev => ({
-              ...prev,
-              level: data.level,
-              xp: data.xp,
-              lifts: data.lifts,
-              evolution: data.evolution,
-              onboardingComplete: true
-            }));
-            setIsLoggedIn(true);
-          }
-        } catch (e) {
-          console.warn("Cloud-Daten konnten nicht geladen werden.");
-        }
-      }
-    };
-    loadFromCloud();
-  }, []);
 
   const handleStartJourney = () => {
     if (stats.onboardingComplete) {
@@ -110,23 +58,18 @@ const App: React.FC = () => {
   };
 
   const handleOnboardingComplete = async (lifts: Lifts) => {
-    const isStrong = lifts.squat >= lifts.bodyweight;
+    const isStrong = lifts.squat >= (lifts.bodyweight * 1.2); // 1.2x BW für echten Strong Start
+    const startLevel = isStrong ? 15 : 1;
     
     const newStats: UserStats = {
       ...stats,
       lifts,
       onboardingComplete: true,
       isStrongStart: isStrong,
-      level: isStrong ? 10 : 1,
-      evolution: isStrong ? { chest: 40, arms: 40, legs: 45, horn: 10 } : { chest: 10, arms: 10, legs: 10, horn: 5 }
+      level: startLevel,
+      avatarUrl: getStaticEvolutionImage(startLevel), // Sofort setzen
+      evolution: isStrong ? { chest: 30, arms: 30, legs: 40, horn: 10 } : { chest: 10, arms: 10, legs: 10, horn: 5 }
     };
-    
-    try {
-      const avatarUrl = await generateUnicornAvatar(newStats);
-      if (avatarUrl) newStats.avatarUrl = avatarUrl;
-    } catch (e) {
-      console.error("Avatar-Generierung fehlgeschlagen:", e);
-    }
 
     setStats(newStats);
     setIsLoggedIn(true);
@@ -137,72 +80,49 @@ const App: React.FC = () => {
     setStats(prev => ({ ...prev, ...newStats }));
   };
 
-  const handleCompleteChallenge = async (challengeId: string) => {
+  const handleCompleteChallenge = (challengeId: string) => {
     const challenge = stats.challenges.find(c => c.id === challengeId);
     if (!challenge || challenge.completed) return;
 
-    const newChallenges = stats.challenges.map(c => 
-      c.id === challengeId ? { ...c, completed: true } : c
-    );
-
-    const updatedStats: UserStats = {
-      ...stats,
-      challenges: newChallenges,
-      xp: stats.xp + challenge.xpReward,
-      evolution: {
-        chest: Math.min(100, stats.evolution.chest + 5),
-        arms: Math.min(100, stats.evolution.arms + 5),
-        legs: Math.min(100, stats.evolution.legs + 5),
-        horn: Math.min(100, stats.evolution.horn + 10),
-      }
-    };
-
-    updatedStats.level = Math.floor(updatedStats.xp / 100) + (stats.isStrongStart ? 10 : 1);
+    const newXp = stats.xp + challenge.xpReward;
+    const newLevel = Math.min(100, Math.floor(newXp / 100) + (stats.isStrongStart ? 15 : 1));
     
-    try {
-      const newUrl = await generateUnicornAvatar(updatedStats);
-      if (newUrl) updatedStats.avatarUrl = newUrl;
-    } catch (e) {}
-
-    setStats(updatedStats);
+    setStats(prev => ({
+      ...prev,
+      challenges: prev.challenges.map(c => c.id === challengeId ? { ...c, completed: true } : c),
+      xp: newXp,
+      level: newLevel,
+      avatarUrl: getStaticEvolutionImage(newLevel) // Automatisches Update
+    }));
   };
 
-  const handleFinishWorkout = async (xpGained: number) => {
+  const handleFinishWorkout = (xpGained: number) => {
     const newXp = stats.xp + xpGained;
-    const newLevel = Math.floor(newXp / 100) + (stats.isStrongStart ? 10 : 1);
+    const newLevel = Math.min(100, Math.floor(newXp / 100) + (stats.isStrongStart ? 15 : 1));
     
-    const newEvolution = {
-      chest: Math.min(100, stats.evolution.chest + 2),
-      arms: Math.min(100, stats.evolution.arms + 2),
-      legs: Math.min(100, stats.evolution.legs + 3),
-      horn: Math.min(100, stats.evolution.horn + 1),
-    };
-
     const updatedStats: UserStats = {
       ...stats,
       xp: newXp,
       level: newLevel,
       totalWorkouts: stats.totalWorkouts + 1,
       streak: stats.streak + 1,
-      evolution: newEvolution
+      avatarUrl: getStaticEvolutionImage(newLevel) // Automatisches Update
     };
 
+    // Automatische Challenge-Prüfung
     if (updatedStats.totalWorkouts === 1) {
       const c1 = updatedStats.challenges.find(c => c.id === 'c1');
       if (c1 && !c1.completed) {
         updatedStats.challenges = updatedStats.challenges.map(c => c.id === 'c1' ? {...c, completed: true} : c);
         updatedStats.xp += c1.xpReward;
+        // Level nach Challenge-XP neu berechnen
+        updatedStats.level = Math.min(100, Math.floor(updatedStats.xp / 100) + (stats.isStrongStart ? 15 : 1));
+        updatedStats.avatarUrl = getStaticEvolutionImage(updatedStats.level);
       }
     }
 
-    if (newLevel > stats.level || updatedStats.totalWorkouts % 3 === 0) {
-      try {
-        const newUrl = await generateUnicornAvatar(updatedStats);
-        if (newUrl) updatedStats.avatarUrl = newUrl;
-      } catch (e) {}
-    }
-
     setStats(updatedStats);
+    setRoute(AppRoute.DASHBOARD);
   };
 
   const renderContent = () => {
@@ -211,8 +131,8 @@ const App: React.FC = () => {
         return <LandingPage onStart={handleStartJourney} setRoute={setRoute} />;
       case AppRoute.ONBOARDING:
         return <Onboarding onComplete={handleOnboardingComplete} />;
-      case AppRoute.CHALLENGES:
       case AppRoute.DASHBOARD:
+      case AppRoute.CHALLENGES:
         return (
           <Dashboard 
             stats={stats} 
@@ -229,16 +149,16 @@ const App: React.FC = () => {
           <div className="pt-40 px-6 text-center animate-in fade-in zoom-in duration-700">
             <div className="text-9xl mb-12 drop-shadow-[0_0_50px_rgba(168,85,247,0.5)]">🦄</div>
             <h1 className="text-6xl font-oswald font-black uppercase tracking-tighter mb-6">
-              Das mystische <span className="unicorn-text-gradient">Iron Unicorn</span>
+              IRON <span className="unicorn-text-gradient">UNICORN</span>
             </h1>
             <p className="text-gray-400 text-xl max-w-2xl mx-auto mb-12">
-              Du hast das Ende der gewöhnlichen Welt erreicht. Ab hier beginnt die Legende. Level 100 ist erst der Anfang deiner unendlichen Evolution.
+              Du hast das Ende der gewöhnlichen Welt erreicht. Du bist nun die Legende, von der alle anderen nur träumen.
             </p>
             <button 
               onClick={() => setRoute(AppRoute.DASHBOARD)}
               className="px-12 py-4 bg-white text-black font-bold rounded-2xl uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all"
             >
-              Zurück zum Stall
+              Zum Dashboard
             </button>
           </div>
         );
@@ -250,15 +170,8 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-purple-500/30">
       <Navigation currentRoute={route} setRoute={setRoute} isLoggedIn={isLoggedIn} />
-      <main>
-        {renderContent()}
-      </main>
+      <main>{renderContent()}</main>
       <footer className="py-10 text-center text-gray-600 text-xs uppercase tracking-widest border-t border-white/5 bg-[#050505]">
-        <div className="mb-4">
-          <span className="px-3 border-r border-white/10">Impressum</span>
-          <span className="px-3 border-r border-white/10">Datenschutz</span>
-          <span className="px-3">AGB</span>
-        </div>
         <p>© 2024 Iron Unicorn App — Crafted with Love and Horns 🦄</p>
       </footer>
     </div>

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserStats, AppRoute, WorkoutDay } from '../types';
-import { MOCK_PLANS } from '../constants';
-import { generateUnicornAvatar, getEvolutionInfo } from '../services/geminiService';
+import { MOCK_PLANS, EVOLUTION_STAGES } from '../constants';
+import { getEvolutionInfo, getStaticEvolutionImage } from '../services/geminiService';
 import WorkoutPreviewModal from './WorkoutPreviewModal';
 
 interface DashboardProps {
@@ -13,58 +13,26 @@ interface DashboardProps {
   onSelectWorkout: (day: WorkoutDay) => void;
 }
 
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
-
 const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, onCompleteChallenge, onSelectWorkout }) => {
   const [activeTab, setActiveTab] = useState<'unicorn' | 'records' | 'plan'>('unicorn');
-  const [avatarLoading, setAvatarLoading] = useState(false);
   const [previewDay, setPreviewDay] = useState<WorkoutDay | null>(null);
-  const [loadingText, setLoadingText] = useState("Magie wird gewirkt...");
 
-  const refreshAvatar = async (forceAI: boolean = false) => {
-    if (avatarLoading) return;
-    setAvatarLoading(true);
-    
-    const texts = ["Scanne Muskulatur...", "Horn-Dichte wird optimiert...", "Protein-Synthese wird beschleunigt...", "Evolution wird berechnet..."];
-    let i = 0;
-    const interval = setInterval(() => {
-      setLoadingText(texts[i % texts.length]);
-      i++;
-    }, 800);
-
-    try {
-      const url = await generateUnicornAvatar(stats, forceAI);
-      if (url) {
-        onUpdateStats({ avatarUrl: url });
-      }
-    } catch (e: any) {
-      console.error("Avatar error:", e);
-    } finally {
-      clearInterval(interval);
-      setAvatarLoading(false);
-    }
-  };
-
+  // Sicherstellen, dass ein Avatar existiert, falls noch keiner in stats gespeichert war
   useEffect(() => {
     if (!stats.avatarUrl && stats.onboardingComplete) {
-      refreshAvatar();
+      onUpdateStats({ avatarUrl: getStaticEvolutionImage(stats.level) });
     }
-  }, [stats.onboardingComplete]);
+  }, [stats.level, stats.onboardingComplete]);
 
   const evoInfo = getEvolutionInfo(stats.level);
   
-  // Nächste Bild-Schwelle finden
-  const levels = [11, 21, 31, 41, 51, 61, 71, 81, 91, 101];
-  const nextStageLevel = levels.find(l => l > stats.level) || 100;
-  const progressToNextStage = Math.min(100, ((stats.level - (nextStageLevel - 10)) / 10) * 100);
+  // Berechnung der Fortschrittsleiste zur NÄCHSTEN Evolutionsstufe
+  const thresholdLevels = Object.keys(EVOLUTION_STAGES).map(Number).sort((a, b) => a - b);
+  const nextStageLevel = thresholdLevels.find(l => l > stats.level) || 100;
+  const currentStageLevel = [...thresholdLevels].reverse().find(l => l <= stats.level) || 1;
+  
+  const range = nextStageLevel - currentStageLevel;
+  const progressInStage = range > 0 ? ((stats.level - currentStageLevel) / range) * 100 : 100;
 
   return (
     <div className="pt-24 pb-20 px-6 max-w-6xl mx-auto space-y-8">
@@ -99,17 +67,14 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
             <div className="lg:col-span-1 glass rounded-3xl p-8 flex flex-col items-center text-center">
               <div className="relative w-full aspect-square mb-6 group">
                 <div className="absolute inset-0 unicorn-gradient rounded-3xl blur-3xl opacity-20 animate-pulse"></div>
-                <div className="relative w-full h-full rounded-3xl bg-neutral-900 border-2 border-white/10 overflow-hidden flex items-center justify-center">
-                  {avatarLoading ? (
-                    <div className="flex flex-col items-center gap-4 p-8">
-                      <i className="fa-solid fa-horse text-6xl text-white/5 animate-pulse"></i>
-                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-[0.2em] text-center">{loadingText}</p>
-                    </div>
-                  ) : stats.avatarUrl ? (
-                    <img src={stats.avatarUrl} alt="Your Unicorn" className="w-full h-full object-cover animate-in fade-in duration-1000" />
-                  ) : (
-                    <button onClick={() => refreshAvatar()} className="p-4 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase">Avatar laden</button>
-                  )}
+                <div className="relative w-full h-full rounded-3xl bg-neutral-900 border-2 border-white/10 overflow-hidden">
+                  <img 
+                    src={stats.avatarUrl || getStaticEvolutionImage(stats.level)} 
+                    alt="Your Unicorn" 
+                    className="w-full h-full object-cover transition-opacity duration-700"
+                    onLoad={(e) => (e.currentTarget.style.opacity = '1')}
+                    style={{ opacity: 0 }}
+                  />
                 </div>
               </div>
               
@@ -121,28 +86,26 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
               <div className="w-full space-y-3">
                 <div className="flex justify-between text-[10px] font-bold uppercase text-gray-500 tracking-widest">
                   <span>Level {stats.level}</span>
-                  <span>Ziel {nextStageLevel}</span>
+                  <span>Ziel Lvl {nextStageLevel}</span>
                 </div>
                 <div className="w-full bg-white/5 h-2.5 rounded-full overflow-hidden p-[2px]">
-                  <div className="unicorn-gradient h-full rounded-full transition-all duration-1000" style={{ width: `${progressToNextStage}%` }}></div>
+                  <div className="unicorn-gradient h-full rounded-full transition-all duration-1000" style={{ width: `${progressInStage}%` }}></div>
                 </div>
-                <p className="text-[9px] text-gray-600 uppercase font-bold">Nächste Transformation bei Lvl {nextStageLevel}</p>
+                <p className="text-[9px] text-gray-600 uppercase font-bold">Transformation bei Lvl {nextStageLevel}</p>
               </div>
 
-              <div className="mt-8 pt-8 border-t border-white/5 w-full flex flex-col gap-4">
-                <div className="flex justify-around">
-                  <div className="text-center">
-                    <div className="text-xl font-oswald font-black">{stats.totalWorkouts}</div>
-                    <div className="text-[8px] text-gray-500 uppercase font-bold">Workouts</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xl font-oswald font-black">{stats.streak}</div>
-                    <div className="text-[8px] text-gray-500 uppercase font-bold">Streak</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xl font-oswald font-black">{stats.xp}</div>
-                    <div className="text-[8px] text-gray-500 uppercase font-bold">XP</div>
-                  </div>
+              <div className="mt-8 pt-8 border-t border-white/5 w-full flex justify-around">
+                <div className="text-center">
+                  <div className="text-xl font-oswald font-black">{stats.totalWorkouts}</div>
+                  <div className="text-[8px] text-gray-500 uppercase font-bold">Workouts</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-oswald font-black">{stats.streak}</div>
+                  <div className="text-[8px] text-gray-500 uppercase font-bold">Streak</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-oswald font-black">{stats.xp}</div>
+                  <div className="text-[8px] text-gray-500 uppercase font-bold">Gesamt XP</div>
                 </div>
               </div>
             </div>
@@ -179,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
               <div className="glass rounded-3xl p-8 bg-purple-500/5 border-purple-500/10">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-oswald uppercase font-bold tracking-tight">Dein Aktiver Plan</h3>
-                  <button onClick={() => setRoute(AppRoute.WORKOUT)} className="text-[10px] bg-white text-black px-4 py-1.5 rounded-full font-bold uppercase hover:bg-purple-500 hover:text-white transition-colors">Starten</button>
+                  <button onClick={() => setRoute(AppRoute.WORKOUT)} className="text-[10px] bg-white text-black px-4 py-1.5 rounded-full font-bold uppercase hover:bg-purple-500 transition-colors">Jetzt Trainieren</button>
                 </div>
                 <div className="flex gap-4 items-center">
                   <div className="w-16 h-16 bg-black/50 rounded-2xl flex items-center justify-center border border-white/10">
@@ -187,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
                   </div>
                   <div>
                     <div className="font-bold text-lg">{MOCK_PLANS[0].title}</div>
-                    <div className="text-xs text-gray-400">Fokus: {MOCK_PLANS[0].focus} | Erstellt von Athleten</div>
+                    <div className="text-xs text-gray-400">Fokus: {MOCK_PLANS[0].focus} | Entwickelt von Profis</div>
                   </div>
                 </div>
               </div>
@@ -204,8 +167,8 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
             { label: 'Deadlift', value: stats.lifts.deadlift, icon: 'fa-trophy', color: 'text-green-400' },
             { label: 'Gewicht', value: stats.lifts.bodyweight, icon: 'fa-scale-balanced', color: 'text-purple-400' },
           ].map((record) => (
-            <div key={record.label} className="glass p-8 rounded-3xl text-center flex flex-col items-center group hover:border-white/20 transition-all">
-              <i className={`fa-solid ${record.icon} text-3xl ${record.color} mb-4 group-hover:scale-110 transition-transform`}></i>
+            <div key={record.label} className="glass p-8 rounded-3xl text-center flex flex-col items-center">
+              <i className={`fa-solid ${record.icon} text-3xl ${record.color} mb-4`}></i>
               <div className="text-3xl font-black font-oswald mb-1">{record.value} <span className="text-sm font-normal text-gray-500 uppercase">kg</span></div>
               <div className="text-xs text-gray-500 uppercase font-bold tracking-widest">{record.label}</div>
             </div>
@@ -214,34 +177,25 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
       )}
 
       {activeTab === 'plan' && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-4">
-            <div>
-              <h3 className="text-3xl font-oswald uppercase font-black tracking-tighter">{MOCK_PLANS[0].title}</h3>
-              <p className="text-sm text-gray-500">Klicke auf einen Tag für die Vorschau.</p>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            {MOCK_PLANS[0].days.map((day, idx) => (
-              <div 
-                key={day.name} 
-                onClick={() => setPreviewDay(day)}
-                className="glass p-6 rounded-3xl border border-white/5 flex justify-between items-center group hover:border-purple-500/40 hover:bg-white/5 transition-all cursor-pointer"
-              >
-                <div className="flex items-center gap-6">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center font-oswald font-black text-xl group-hover:bg-white group-hover:text-black transition-all">
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-lg">{day.name}</h4>
-                    <p className="text-xs text-gray-500 uppercase tracking-widest">{day.exercises.length} Übungen</p>
-                  </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 grid md:grid-cols-2 gap-4">
+          {MOCK_PLANS[0].days.map((day, idx) => (
+            <div 
+              key={day.name} 
+              onClick={() => setPreviewDay(day)}
+              className="glass p-6 rounded-3xl border border-white/5 flex justify-between items-center group hover:border-purple-500/40 hover:bg-white/5 transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-6">
+                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center font-oswald font-black text-xl group-hover:bg-white group-hover:text-black transition-all">
+                  {idx + 1}
                 </div>
-                <i className="fa-solid fa-eye text-gray-600 group-hover:text-white transition-colors"></i>
+                <div>
+                  <h4 className="font-bold text-lg">{day.name}</h4>
+                  <p className="text-xs text-gray-500 uppercase tracking-widest">{day.exercises.length} Übungen</p>
+                </div>
               </div>
-            ))}
-          </div>
+              <i className="fa-solid fa-chevron-right text-gray-600 group-hover:text-white"></i>
+            </div>
+          ))}
         </div>
       )}
     </div>

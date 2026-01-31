@@ -5,41 +5,43 @@ import { EVOLUTION_STAGES } from "../constants";
 
 /**
  * Ermittelt das passende statische Bild basierend auf dem Level.
- * Durchläuft die Schwellenwerte abwärts.
+ * Diese Funktion ist synchron und extrem schnell für sofortiges Feedback.
  */
 export function getStaticEvolutionImage(level: number): string {
-  const levels = Object.keys(EVOLUTION_STAGES).map(Number).sort((a, b) => b - a);
-  for (const l of levels) {
+  const thresholdLevels = Object.keys(EVOLUTION_STAGES).map(Number).sort((a, b) => b - a);
+  for (const l of thresholdLevels) {
     if (level >= l) return EVOLUTION_STAGES[l].url;
   }
   return EVOLUTION_STAGES[1].url;
 }
 
 /**
- * Ermittelt die Stufen-Informationen für die UI.
+ * Ermittelt die Stufen-Informationen für die UI (Name und Beschreibung).
  */
 export function getEvolutionInfo(level: number) {
-  const levels = Object.keys(EVOLUTION_STAGES).map(Number).sort((a, b) => b - a);
-  for (const l of levels) {
+  const thresholdLevels = Object.keys(EVOLUTION_STAGES).map(Number).sort((a, b) => b - a);
+  for (const l of thresholdLevels) {
     if (level >= l) return EVOLUTION_STAGES[l];
   }
   return EVOLUTION_STAGES[1];
 }
 
 /**
- * Generiert ein Einhorn-Avatar. 
+ * Generiert ein Einhorn-Avatar.
+ * Priorisiert statische Bilder für sofortige UX, nutzt KI nur bei explizitem Wunsch.
  */
 export async function generateUnicornAvatar(stats: UserStats, forceAI: boolean = false): Promise<string | null> {
   const { level, isStrongStart } = stats;
 
-  if (!forceAI && !process.env.API_KEY) {
+  // Wenn keine KI-Generierung erzwungen wird oder kein Key da ist, sofort das statische Bild zurückgeben
+  if (!forceAI || !process.env.API_KEY) {
     return getStaticEvolutionImage(level);
   }
 
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const physique = (isStrongStart || level > 30) ? "monstrous bodybuilder physique" : "defined muscular athlete";
-    const prompt = `Epic full body shot of a muscular anthropomorphic unicorn standing upright, ${physique}, heroic god-like pose, dark mystical gym environment, cinematic volumetric lighting, 8k resolution, photorealistic digital art.`;
+    const physique = (isStrongStart || level > 30) ? "massive bodybuilding muscles" : "muscular athlete";
+    const prompt = `Epic full body shot of a muscular anthropomorphic unicorn standing on two legs, ${physique}, heroic pose, dark gym, cinematic lighting.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -55,25 +57,9 @@ export async function generateUnicornAvatar(stats: UserStats, forceAI: boolean =
         }
       }
     }
-  } catch (error: any) {
-    console.warn("AI Fallback active.");
+  } catch (error) {
+    console.warn("AI Generation failed, using static fallback.");
   }
 
   return getStaticEvolutionImage(level);
-}
-
-/**
- * Generates a motivational fitness tip.
- */
-export async function getUnicornWisdomPrompt(topic: string): Promise<string> {
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Gib mir einen extrem kurzen, motivierenden Fitness-Tipp (max 10 Wörter) zu: ${topic}. Vibe: Kraftvoll, Einhorn-Thematik.`,
-    });
-    return response.text || "Konsistenz schlägt Talent.";
-  } catch (error) {
-    return "Dein Horn wächst mit jedem Satz.";
-  }
 }
