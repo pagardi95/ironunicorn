@@ -8,6 +8,7 @@ import Onboarding from './components/Onboarding';
 import { AppRoute, UserStats, Lifts, WorkoutDay } from './types';
 import { generateUnicornAvatar } from './services/geminiService';
 import { MOCK_PLANS } from './constants';
+import { supabase } from './services/supabaseClient';
 
 const App: React.FC = () => {
   const [route, setRoute] = useState<AppRoute>(AppRoute.LANDING);
@@ -35,9 +36,55 @@ const App: React.FC = () => {
     };
   });
 
+  // Supabase Sync Logic
   useEffect(() => {
-    localStorage.setItem('unicorn_stats', JSON.stringify(stats));
+    const syncData = async () => {
+      localStorage.setItem('unicorn_stats', JSON.stringify(stats));
+      
+      if (supabase && stats.onboardingComplete) {
+        // Wir nutzen hier eine einfache Logik: Wenn kein Nutzer eingeloggt ist, 
+        // simulieren wir einen festen Test-Nutzer-Eintrag in Supabase.
+        // In einer echten App würde man hier supabase.auth.user() nutzen.
+        const { error } = await supabase
+          .from('profiles')
+          .upsert({ 
+            id: '00000000-0000-0000-0000-000000000000', // Platzhalter ID
+            level: stats.level,
+            xp: stats.xp,
+            lifts: stats.lifts,
+            evolution: stats.evolution
+          });
+        if (error) console.error('Supabase Sync Error:', error.message);
+      }
+    };
+    syncData();
   }, [stats]);
+
+  // Initiales Laden von Supabase
+  useEffect(() => {
+    const loadFromCloud = async () => {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', '00000000-0000-0000-0000-000000000000')
+          .single();
+        
+        if (data && !error) {
+          setStats(prev => ({
+            ...prev,
+            level: data.level,
+            xp: data.xp,
+            lifts: data.lifts,
+            evolution: data.evolution,
+            onboardingComplete: true
+          }));
+          setIsLoggedIn(true);
+        }
+      }
+    };
+    loadFromCloud();
+  }, []);
 
   const handleStartJourney = () => {
     if (stats.onboardingComplete) {
@@ -60,7 +107,6 @@ const App: React.FC = () => {
       evolution: isStrong ? { chest: 40, arms: 40, legs: 45, horn: 10 } : { chest: 10, arms: 10, legs: 10, horn: 5 }
     };
     
-    // Generate initial avatar based on lifts
     const avatarUrl = await generateUnicornAvatar(newStats);
     if (avatarUrl) newStats.avatarUrl = avatarUrl;
 
@@ -93,7 +139,6 @@ const App: React.FC = () => {
       }
     };
 
-    // Recalculate level
     updatedStats.level = Math.floor(updatedStats.xp / 100) + (stats.isStrongStart ? 10 : 1);
     
     const newUrl = await generateUnicornAvatar(updatedStats);
@@ -122,7 +167,6 @@ const App: React.FC = () => {
       evolution: newEvolution
     };
 
-    // Auto-complete first workout challenge
     if (updatedStats.totalWorkouts === 1) {
       const c1 = updatedStats.challenges.find(c => c.id === 'c1');
       if (c1 && !c1.completed) {
@@ -145,7 +189,6 @@ const App: React.FC = () => {
         return <LandingPage onStart={handleStartJourney} setRoute={setRoute} />;
       case AppRoute.ONBOARDING:
         return <Onboarding onComplete={handleOnboardingComplete} />;
-      // Handle CHALLENGES route (reusing Dashboard since challenges are integrated there)
       case AppRoute.CHALLENGES:
       case AppRoute.DASHBOARD:
         return (
@@ -159,7 +202,6 @@ const App: React.FC = () => {
         );
       case AppRoute.WORKOUT:
         return <WorkoutView stats={stats} onFinish={handleFinishWorkout} setRoute={setRoute} dayOverride={selectedWorkout} />;
-      // Handle LEVEL_100 mystery page
       case AppRoute.LEVEL_100:
         return (
           <div className="pt-40 px-6 text-center animate-in fade-in zoom-in duration-700">
