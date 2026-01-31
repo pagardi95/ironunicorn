@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserStats, AppRoute, WorkoutDay, Challenge } from '../types';
+import { UserStats, AppRoute, WorkoutDay } from '../types';
 import { MOCK_PLANS } from '../constants';
 import { generateUnicornAvatar } from '../services/geminiService';
 import WorkoutPreviewModal from './WorkoutPreviewModal';
@@ -19,19 +19,25 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
   const [previewDay, setPreviewDay] = useState<WorkoutDay | null>(null);
 
   const refreshAvatar = async () => {
+    if (avatarLoading) return;
     setAvatarLoading(true);
-    const url = await generateUnicornAvatar(stats);
-    if (url) {
-      onUpdateStats({ avatarUrl: url });
+    try {
+      const url = await generateUnicornAvatar(stats);
+      if (url) {
+        onUpdateStats({ avatarUrl: url });
+      }
+    } catch (e) {
+      console.error("Avatar refresh failed", e);
+    } finally {
+      setAvatarLoading(false);
     }
-    setAvatarLoading(false);
   };
 
   useEffect(() => {
-    if (!stats.avatarUrl) {
+    if (!stats.avatarUrl && stats.onboardingComplete) {
       refreshAvatar();
     }
-  }, []);
+  }, [stats.onboardingComplete]);
 
   const nextEvolutionLevel = stats.level <= 1 ? 10 : stats.level <= 10 ? 25 : stats.level <= 25 ? 50 : stats.level <= 50 ? 75 : 100;
   const progressToNextEvo = Math.min(100, (stats.level / nextEvolutionLevel) * 100);
@@ -69,22 +75,36 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-1 glass rounded-3xl p-8 flex flex-col items-center text-center">
               <div className="relative w-full aspect-square mb-6 group">
-                <div className="absolute inset-0 unicorn-gradient rounded-3xl blur-2xl opacity-10"></div>
+                <div className="absolute inset-0 unicorn-gradient rounded-3xl blur-2xl opacity-10 animate-pulse"></div>
                 <div className="relative w-full h-full rounded-3xl bg-neutral-900 border-2 border-white/10 overflow-hidden flex items-center justify-center">
                   {avatarLoading ? (
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="animate-spin text-4xl text-purple-500"><i className="fa-solid fa-circle-notch"></i></div>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest">Avatar wird gerendert...</p>
+                    <div className="flex flex-col items-center gap-4 p-8">
+                      <div className="relative">
+                        <i className="fa-solid fa-horse text-6xl text-white/5 animate-pulse"></i>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <i className="fa-solid fa-circle-notch fa-spin text-4xl text-purple-500"></i>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] animate-bounce">Magie wird gewirkt...</p>
                     </div>
                   ) : stats.avatarUrl ? (
-                    <img src={stats.avatarUrl} alt="Your Unicorn" className="w-full h-full object-cover" />
+                    <img src={stats.avatarUrl} alt="Your Unicorn" className="w-full h-full object-cover animate-in fade-in duration-1000" />
                   ) : (
-                    <i className="fa-solid fa-horse text-6xl text-white/10"></i>
+                    <div className="text-center p-6">
+                      <i className="fa-solid fa-wand-magic-sparkles text-5xl text-white/10 mb-4"></i>
+                      <p className="text-xs text-gray-500 uppercase font-bold mb-4">Kein Bild geladen</p>
+                      <button 
+                        onClick={refreshAvatar}
+                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] uppercase font-black transition-all"
+                      >
+                        Magie aufladen
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
               
-              <h2 className="text-3xl font-oswald uppercase font-black">Level {stats.level}</h2>
+              <h2 className="text-3xl font-oswald uppercase font-black tracking-tighter">Level {stats.level}</h2>
               <div className="w-full mt-4 space-y-2">
                 <div className="flex justify-between text-[10px] font-bold uppercase text-gray-500 tracking-tighter">
                   <span>Nächste Evolution</span>
@@ -166,7 +186,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
           <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-4">
             <div>
-              <h3 className="text-3xl font-oswald uppercase font-black">{MOCK_PLANS[0].title}</h3>
+              <h3 className="text-3xl font-oswald uppercase font-black tracking-tighter">{MOCK_PLANS[0].title}</h3>
               <p className="text-sm text-gray-500">Klicke auf einen Tag, um die Übungen zu sehen.</p>
             </div>
           </div>

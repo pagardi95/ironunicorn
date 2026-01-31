@@ -2,54 +2,58 @@
 import { GoogleGenAI } from "@google/genai";
 import { UserStats } from "../types";
 
-const isValidEnv = (val: any): val is string => {
-  return typeof val === 'string' && val.length > 0 && val !== 'undefined' && val !== 'null';
-};
-
+/**
+ * Holt den API-Key aus allen möglichen Quellen (Vite, Vercel, Global).
+ */
 const getApiKey = (): string => {
   try {
-    const metaKey = (import.meta as any).env?.VITE_API_KEY || (import.meta as any).env?.API_KEY;
-    if (isValidEnv(metaKey)) return metaKey;
+    // 1. Direkt über process.env (Vite 'define' Ersetzung)
+    const envKey = process.env.API_KEY;
+    if (envKey && envKey !== 'undefined' && envKey !== '') return envKey;
 
-    const procKey = (process.env as any).API_KEY || (process.env as any).VITE_API_KEY;
-    if (isValidEnv(procKey)) return procKey;
-  } catch (e) {}
+    // 2. Über import.meta.env (Vite Standard)
+    const metaKey = (import.meta as any).env?.VITE_API_KEY;
+    if (metaKey && metaKey !== 'undefined' && metaKey !== '') return metaKey;
+
+    // 3. Fallback auf window
+    const winKey = (window as any).process?.env?.API_KEY;
+    if (winKey && winKey !== 'undefined' && winKey !== '') return winKey;
+  } catch (e) {
+    console.warn("Fehler beim Zugriff auf API_KEY:", e);
+  }
   return "";
 };
 
 export async function generateUnicornAvatar(stats: UserStats): Promise<string | null> {
   const apiKey = getApiKey();
+  
   if (!apiKey) {
-    console.warn("Avatar-Generierung übersprungen: Kein API_KEY konfiguriert.");
+    console.error("AVATAR ERROR: Kein API_KEY gefunden. Bitte in Vercel als API_KEY hinterlegen.");
     return null;
   }
 
+  console.log("AVATAR START: Generiere Einhorn für Level", stats.level);
+
   try {
-    const { evolution, level, isStrongStart } = stats;
     const ai = new GoogleGenAI({ apiKey });
+    const { evolution, level, isStrongStart } = stats;
     
-    let baseDescription = "A muscular, anthropomorphic unicorn standing on two legs like a bodybuilder. Dark background, epic lighting, cinematic style. No kitsch, pure power.";
+    // Dynamische Beschreibung basierend auf den Stats
+    let muscleDescription = isStrongStart || level > 10 
+      ? "extremely muscular and vascular bodybuilder physique" 
+      : "athletic and toned muscular physique";
     
-    let physicality = (isStrongStart || level > 15) 
-      ? "extremely muscular, vascular physique, pro-bodybuilder proportions." 
-      : "lean but athletic physique, beginning muscle definition, slim waist.";
+    let partsDetail = "";
+    if (evolution.chest > 40) partsDetail += " massive pectoral muscles,";
+    if (evolution.arms > 40) partsDetail += " bulging biceps,";
+    if (evolution.horn > 15) partsDetail += " a glowing energy horn,";
 
-    let details = "";
-    if (evolution.chest > 50) details += " Massive pectoral muscles.";
-    if (evolution.arms > 50) details += " Gigantic biceps and triceps.";
-    if (evolution.legs > 50) details += " Powerful quad and calf muscles.";
-    if (evolution.horn > 50) details += " A glowing, crystalline horn with magical energy sparks.";
-    
-    if (level >= 100) {
-      details = "A god-like mythical being, colossal muscles, armor made of starlight and iron, epic celestial aura, the legendary Iron Unicorn.";
-    }
-
-    const fullPrompt = `${baseDescription} This unicorn is ${physicality} ${details} Standing on two legs, aggressive but noble pose.`;
+    const prompt = `A highly detailed, cinematic, anthropomorphic unicorn standing on two legs. It has an ${muscleDescription}.${partsDetail} Dark epic background with dramatic rim lighting. 3D render style, octane render, masterpiece, no kitsch, pure strength and power.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [{ text: fullPrompt }]
+        parts: [{ text: prompt }]
       },
       config: {
         imageConfig: {
@@ -58,30 +62,39 @@ export async function generateUnicornAvatar(stats: UserStats): Promise<string | 
       }
     });
 
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
+    console.log("AVATAR RESPONSE: API hat geantwortet.");
+
+    // Suche nach dem Bild-Teil in der Antwort
+    const parts = response.candidates?.[0]?.content?.parts;
+    if (parts) {
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          console.log("AVATAR SUCCESS: Bild-Daten empfangen.");
+          return `data:image/png;base64,${part.inlineData.data}`;
+        }
       }
     }
+
+    console.error("AVATAR ERROR: Keine Bild-Daten in der API-Antwort gefunden.", response);
     return null;
-  } catch (error) {
-    console.error("Fehler bei der Avatar-Generierung:", error);
+  } catch (error: any) {
+    console.error("AVATAR CRITICAL ERROR:", error.message || error);
     return null;
   }
 }
 
 export async function getUnicornWisdomPrompt(topic: string): Promise<string> {
   const apiKey = getApiKey();
-  if (!apiKey) return "Bleib dran, das Horn wächst mit dem Widerstand.";
+  if (!apiKey) return "Konsistenz ist der Schlüssel zum Erfolg.";
 
   try {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gib mir einen kurzen, motivierenden und fachlich fundierten Tipp zum Thema ${topic} für die Iron Unicorn Fitness App. Tonalität: Kompetent, nahbar, mit einem Hauch Unicorn-Humor. Maximal 2 Sätze.`,
+      contents: `Gib mir einen kurzen, motivierenden Fitness-Tipp zum Thema ${topic}. Maximal 15 Wörter. Einhorn-Vibe.`,
     });
-    return response.text || "Bleib dran, das Horn wächst mit dem Widerstand.";
+    return response.text || "Dein Horn wächst mit jedem Satz.";
   } catch (error) {
-    return "Konsistenz ist der Schlüssel zum Erfolg.";
+    return "Dein Horn wächst mit jedem Satz.";
   }
 }
