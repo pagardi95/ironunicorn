@@ -2,21 +2,25 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Robust environment variable retrieval.
- * Supports both Vite (import.meta.env) and standard Node-like (process.env) environments.
+ * Sicherer Zugriff auf Umgebungsvariablen für verschiedene Plattformen (Vite, Vercel, Node).
  */
 const getEnvVar = (name: string): string | undefined => {
   try {
-    // Check process.env (common in CI/CD and defined in vite.config.ts)
-    if (typeof process !== 'undefined' && process.env && (process.env as any)[name]) {
-      return (process.env as any)[name];
-    }
-    // Check import.meta.env (Vite standard)
+    // 1. Vite / Vercel Define-Ersatz (Wichtig für statische Ersetzung)
+    if (name === 'VITE_SUPABASE_URL' && typeof process !== 'undefined' && (process.env as any).VITE_SUPABASE_URL) return (process.env as any).VITE_SUPABASE_URL;
+    if (name === 'VITE_SUPABASE_ANON_KEY' && typeof process !== 'undefined' && (process.env as any).VITE_SUPABASE_ANON_KEY) return (process.env as any).VITE_SUPABASE_ANON_KEY;
+
+    // 2. Vite standard (import.meta.env)
     if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[name]) {
       return (import.meta as any).env[name];
     }
+    
+    // 3. Fallback auf direktes window/global Objekt, falls dort injiziert
+    if (typeof window !== 'undefined' && (window as any)._env_ && (window as any)._env_[name]) {
+      return (window as any)._env_[name];
+    }
   } catch (e) {
-    // Silently fail if access is restricted
+    // Falls Zugriff blockiert ist, leise fehlschlagen
   }
   return undefined;
 };
@@ -24,7 +28,8 @@ const getEnvVar = (name: string): string | undefined => {
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
-// Only initialize if both URL and Key are present
-export const supabase = (supabaseUrl && supabaseAnonKey) 
+// Initialisiere den Client nur, wenn beide Werte vorhanden sind.
+// Falls nicht, ist 'supabase' null und die App nutzt das Fallback-Verhalten (localStorage).
+export const supabase = (supabaseUrl && supabaseAnonKey && supabaseUrl !== "undefined" && supabaseAnonKey !== "undefined") 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;

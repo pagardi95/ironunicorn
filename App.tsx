@@ -10,30 +10,39 @@ import { generateUnicornAvatar } from './services/geminiService';
 import { MOCK_PLANS } from './constants';
 import { supabase } from './services/supabaseClient';
 
+const DEFAULT_STATS: UserStats = {
+  level: 1,
+  xp: 0,
+  streak: 0,
+  totalWorkouts: 0,
+  onboardingComplete: false,
+  isStrongStart: false,
+  lifts: { bodyweight: 0, squat: 0, bench: 0, deadlift: 0 },
+  evolution: { chest: 10, arms: 10, legs: 10, horn: 5 },
+  challenges: [
+    { id: 'c1', title: 'Erstes Training', description: 'Schließe dein erstes Workout ab.', xpReward: 50, completed: false, type: 'consistency' },
+    { id: 'c2', title: 'Double Trouble', description: 'Trainiere 2 Tage hintereinander.', xpReward: 100, completed: false, type: 'streak' },
+    { id: 'c3', title: 'Heavy Hitter', description: 'Logge ein Gewicht > Körpergewicht.', xpReward: 150, completed: false, type: 'lift' }
+  ]
+};
+
 const App: React.FC = () => {
   const [route, setRoute] = useState<AppRoute>(AppRoute.LANDING);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDay | null>(null);
 
   const [stats, setStats] = useState<UserStats>(() => {
-    const saved = localStorage.getItem('unicorn_stats');
-    if (saved) return JSON.parse(saved);
-    
-    return {
-      level: 1,
-      xp: 0,
-      streak: 0,
-      totalWorkouts: 0,
-      onboardingComplete: false,
-      isStrongStart: false,
-      lifts: { bodyweight: 0, squat: 0, bench: 0, deadlift: 0 },
-      evolution: { chest: 10, arms: 10, legs: 10, horn: 5 },
-      challenges: [
-        { id: 'c1', title: 'Erstes Training', description: 'Schließe dein erstes Workout ab.', xpReward: 50, completed: false, type: 'consistency' },
-        { id: 'c2', title: 'Double Trouble', description: 'Trainiere 2 Tage hintereinander.', xpReward: 100, completed: false, type: 'streak' },
-        { id: 'c3', title: 'Heavy Hitter', description: 'Logge ein Gewicht > Körpergewicht.', xpReward: 150, completed: false, type: 'lift' }
-      ]
-    };
+    try {
+      const saved = localStorage.getItem('unicorn_stats');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Sicherstellen, dass die Struktur passt
+        return { ...DEFAULT_STATS, ...parsed };
+      }
+    } catch (e) {
+      console.error("Fehler beim Laden von localStorage:", e);
+    }
+    return DEFAULT_STATS;
   });
 
   // Supabase Sync Logic
@@ -42,19 +51,20 @@ const App: React.FC = () => {
       localStorage.setItem('unicorn_stats', JSON.stringify(stats));
       
       if (supabase && stats.onboardingComplete) {
-        // Wir nutzen hier eine einfache Logik: Wenn kein Nutzer eingeloggt ist, 
-        // simulieren wir einen festen Test-Nutzer-Eintrag in Supabase.
-        // In einer echten App würde man hier supabase.auth.user() nutzen.
-        const { error } = await supabase
-          .from('profiles')
-          .upsert({ 
-            id: '00000000-0000-0000-0000-000000000000', // Platzhalter ID
-            level: stats.level,
-            xp: stats.xp,
-            lifts: stats.lifts,
-            evolution: stats.evolution
-          });
-        if (error) console.error('Supabase Sync Error:', error.message);
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .upsert({ 
+              id: '00000000-0000-0000-0000-000000000000', 
+              level: stats.level,
+              xp: stats.xp,
+              lifts: stats.lifts,
+              evolution: stats.evolution
+            });
+          if (error) console.warn('Supabase Sync Hinweis:', error.message);
+        } catch (e) {
+          console.error("Supabase Sync fehlgeschlagen:", e);
+        }
       }
     };
     syncData();
@@ -64,22 +74,26 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadFromCloud = async () => {
       if (supabase) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', '00000000-0000-0000-0000-000000000000')
-          .single();
-        
-        if (data && !error) {
-          setStats(prev => ({
-            ...prev,
-            level: data.level,
-            xp: data.xp,
-            lifts: data.lifts,
-            evolution: data.evolution,
-            onboardingComplete: true
-          }));
-          setIsLoggedIn(true);
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', '00000000-0000-0000-0000-000000000000')
+            .maybeSingle(); // maybeSingle verhindert Fehler bei leerer DB
+          
+          if (data && !error) {
+            setStats(prev => ({
+              ...prev,
+              level: data.level,
+              xp: data.xp,
+              lifts: data.lifts,
+              evolution: data.evolution,
+              onboardingComplete: true
+            }));
+            setIsLoggedIn(true);
+          }
+        } catch (e) {
+          console.warn("Cloud-Daten konnten nicht geladen werden.");
         }
       }
     };
@@ -107,8 +121,12 @@ const App: React.FC = () => {
       evolution: isStrong ? { chest: 40, arms: 40, legs: 45, horn: 10 } : { chest: 10, arms: 10, legs: 10, horn: 5 }
     };
     
-    const avatarUrl = await generateUnicornAvatar(newStats);
-    if (avatarUrl) newStats.avatarUrl = avatarUrl;
+    try {
+      const avatarUrl = await generateUnicornAvatar(newStats);
+      if (avatarUrl) newStats.avatarUrl = avatarUrl;
+    } catch (e) {
+      console.error("Avatar-Generierung fehlgeschlagen:", e);
+    }
 
     setStats(newStats);
     setIsLoggedIn(true);
@@ -141,8 +159,10 @@ const App: React.FC = () => {
 
     updatedStats.level = Math.floor(updatedStats.xp / 100) + (stats.isStrongStart ? 10 : 1);
     
-    const newUrl = await generateUnicornAvatar(updatedStats);
-    if (newUrl) updatedStats.avatarUrl = newUrl;
+    try {
+      const newUrl = await generateUnicornAvatar(updatedStats);
+      if (newUrl) updatedStats.avatarUrl = newUrl;
+    } catch (e) {}
 
     setStats(updatedStats);
   };
@@ -176,8 +196,10 @@ const App: React.FC = () => {
     }
 
     if (newLevel > stats.level || updatedStats.totalWorkouts % 3 === 0) {
-      const newUrl = await generateUnicornAvatar(updatedStats);
-      if (newUrl) updatedStats.avatarUrl = newUrl;
+      try {
+        const newUrl = await generateUnicornAvatar(updatedStats);
+        if (newUrl) updatedStats.avatarUrl = newUrl;
+      } catch (e) {}
     }
 
     setStats(updatedStats);

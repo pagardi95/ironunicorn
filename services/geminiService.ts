@@ -2,16 +2,27 @@
 import { GoogleGenAI } from "@google/genai";
 import { UserStats } from "../types";
 
+const getApiKey = (): string => {
+  try {
+    if (typeof process !== 'undefined' && (process.env as any).API_KEY) return (process.env as any).API_KEY;
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_API_KEY) return (import.meta as any).env.VITE_API_KEY;
+  } catch (e) {}
+  return "";
+};
+
 export async function generateUnicornAvatar(stats: UserStats): Promise<string | null> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    console.warn("API_KEY fehlt - Avatar-Generierung übersprungen.");
+    return null;
+  }
+
   try {
     const { evolution, level, isStrongStart } = stats;
-    
-    // Initialize GoogleGenAI inside the function to ensure the correct context
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     
     let baseDescription = "A muscular, anthropomorphic unicorn standing on two legs like a bodybuilder. Dark background, epic lighting, cinematic style. No kitsch, pure power.";
     
-    // Physical state description
     let physicality = "";
     if (isStrongStart || level > 15) {
       physicality = "extremely muscular, vascular physique, pro-bodybuilder proportions.";
@@ -19,7 +30,6 @@ export async function generateUnicornAvatar(stats: UserStats): Promise<string | 
       physicality = "lean but athletic physique, beginning muscle definition, slim waist.";
     }
 
-    // Part specific evolution
     let details = "";
     if (evolution.chest > 50) details += " Massive pectoral muscles.";
     if (evolution.arms > 50) details += " Gigantic biceps and triceps.";
@@ -57,15 +67,15 @@ export async function generateUnicornAvatar(stats: UserStats): Promise<string | 
 }
 
 export async function getUnicornWisdomPrompt(topic: string): Promise<string> {
+  const apiKey = getApiKey();
+  if (!apiKey) return "Bleib dran, das Horn wächst mit dem Widerstand.";
+
   try {
-    // Initialize GoogleGenAI inside the function
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Gib mir einen kurzen, motivierenden und fachlich fundierten Tipp zum Thema ${topic} für die Iron Unicorn Fitness App. Tonalität: Kompetent, nahbar, mit einem Hauch Unicorn-Humor. Maximal 2 Sätze.`,
     });
-    // Ensure accessing .text as a property, not a method
     return response.text || "Bleib dran, das Horn wächst mit dem Widerstand.";
   } catch (error) {
     return "Konsistenz ist der Schlüssel zum Erfolg.";
