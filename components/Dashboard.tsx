@@ -13,10 +13,13 @@ interface DashboardProps {
   onSelectWorkout: (day: WorkoutDay) => void;
 }
 
-// Fix: Use the globally available AIStudio type and ensure modifiers match existing environment declarations.
+// Fixed: Inline the interface to avoid "Subsequent property declarations must have the same type" error.
 declare global {
   interface Window {
-    aistudio?: AIStudio;
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
   }
 }
 
@@ -24,20 +27,24 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
   const [activeTab, setActiveTab] = useState<'unicorn' | 'records' | 'plan'>('unicorn');
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [previewDay, setPreviewDay] = useState<WorkoutDay | null>(null);
-  const [hasKey, setHasKey] = useState(true);
+  const [isKeySelected, setIsKeySelected] = useState(true);
 
   const checkKeyStatus = async () => {
     if (window.aistudio) {
-      const selected = await window.aistudio.hasSelectedApiKey();
-      setHasKey(selected || !!process.env.API_KEY);
+      try {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setIsKeySelected(selected);
+      } catch (e) {
+        console.warn("Error checking API key status", e);
+      }
     }
   };
 
   const handleOpenKeySelector = async () => {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
-      // Wir gehen davon aus, dass die Auswahl erfolgreich war (Race Condition Handling)
-      setHasKey(true);
+      // Assume success after triggering dialog per instructions
+      setIsKeySelected(true);
       refreshAvatar();
     }
   };
@@ -50,10 +57,20 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
       if (url) {
         onUpdateStats({ avatarUrl: url });
       } else {
-        // Falls kein Bild kommt, könnte es am Key liegen
-        checkKeyStatus();
+        console.log("Avatar generation returned null. Checking key status...");
+        await checkKeyStatus();
       }
-    } catch (e) {
+    } catch (e: any) {
+      // Guidelines: If the request fails with "Requested entity was not found.", 
+      // reset key selection state and prompt for key via openSelectKey
+      if (e?.message?.includes("Requested entity was not found.")) {
+        setIsKeySelected(false);
+        if (window.aistudio) {
+          await window.aistudio.openSelectKey();
+          // After triggering selector, assume success per guidelines
+          setIsKeySelected(true);
+        }
+      }
       console.error("Avatar refresh failed", e);
     } finally {
       setAvatarLoading(false);
@@ -121,25 +138,25 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
                     <div className="text-center p-6 flex flex-col items-center gap-4">
                       <i className="fa-solid fa-wand-magic-sparkles text-5xl text-white/10"></i>
                       <div>
-                        <p className="text-xs text-gray-500 uppercase font-bold mb-2">Avatar nicht bereit</p>
-                        {!hasKey ? (
-                           <button 
+                        <p className="text-xs text-gray-500 uppercase font-bold mb-3">Avatar nicht bereit</p>
+                        {window.aistudio && !isKeySelected ? (
+                          <button 
                             onClick={handleOpenKeySelector}
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] uppercase font-black transition-all shadow-lg shadow-purple-900/20"
+                            className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] uppercase font-black transition-all shadow-lg"
                           >
                             <i className="fa-solid fa-key mr-2"></i> API Key einrichten
                           </button>
                         ) : (
                           <button 
                             onClick={refreshAvatar}
-                            className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] uppercase font-black transition-all"
+                            className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] uppercase font-black transition-all"
                           >
                             Magie erneut versuchen
                           </button>
                         )}
                       </div>
                       <p className="text-[9px] text-gray-600 max-w-[150px]">
-                        Tipp: Ein gültiger API-Key aus einem <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline">Projekt mit Abrechnung</a> ist nötig.
+                        Tipp: Für die Bildgenerierung ist ein gültiger API-Key erforderlich.
                       </p>
                     </div>
                   )}
