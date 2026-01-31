@@ -1,0 +1,7 @@
+{
+  "name": "Iron Unicorn App",
+  "description": "A high-performance gamified fitness app where your progress transforms your personal muscular unicorn avatar. Developed by pro athletes for legends in the making.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
