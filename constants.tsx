@@ -14,13 +14,61 @@ export const UNICORN_WISDOM = [
   { title: "Intensität", text: "Wähle das Gewicht so, dass die letzte Wiederholung ein Kampf zwischen dir und deinem inneren Pony ist." },
 ];
 
-// Statische Bilder für die Evolution (Ersetze diese URLs durch deine hochgeladenen Assets)
-export const EVOLUTION_STAGES = {
-  1: "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=800&auto=format&fit=crop", // Stufe 1: Schlank/Beginner
-  10: "https://images.unsplash.com/photo-1598971861713-54ad16a7e718?q=80&w=800&auto=format&fit=crop", // Stufe 2: Athletisch
-  25: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=800&auto=format&fit=crop", // Stufe 3: Kraftvoll
-  50: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=800&auto=format&fit=crop", // Stufe 4: Beast Mode
-  75: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop", // Stufe 5: Titan / Iron Unicorn
+/**
+ * 10 Evolution-Stages gemappt auf 100 Level.
+ * Ersetze die URLs durch deine 10 generierten Bilder.
+ */
+export const EVOLUTION_STAGES: Record<number, { url: string; name: string; desc: string }> = {
+  1: { 
+    url: "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=800", 
+    name: "Das Fohlen", 
+    desc: "Der Anfang einer Legende." 
+  },
+  11: { 
+    url: "https://images.unsplash.com/photo-1598971861713-54ad16a7e718?q=80&w=800", 
+    name: "Der Aufsteiger", 
+    desc: "Erste Fasern werden sichtbar." 
+  },
+  21: { 
+    url: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=800", 
+    name: "Der Athlet", 
+    desc: "Stahlharte Disziplin zahlt sich aus." 
+  },
+  31: { 
+    url: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=800", 
+    name: "Das Power-Pony", 
+    desc: "Dein Fundament steht." 
+  },
+  41: { 
+    url: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800", 
+    name: "Der Kraftprotz", 
+    desc: "Die Masse kommt." 
+  },
+  51: { 
+    url: "https://images.unsplash.com/photo-1541534741688-6078c64b5ec5?q=80&w=800", 
+    name: "Der Zerstörer", 
+    desc: "Gewichte erzittern vor dir." 
+  },
+  61: { 
+    url: "https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=800", 
+    name: "Das Stall-Monster", 
+    desc: "Du bist kaum noch zu halten." 
+  },
+  71: { 
+    url: "https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?q=80&w=800", 
+    name: "Der Mystiker", 
+    desc: "Das Horn glüht vor Energie." 
+  },
+  81: { 
+    url: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=800", 
+    name: "Der Halbgott", 
+    desc: "Du beherrschst den Stall." 
+  },
+  91: { 
+    url: "https://images.unsplash.com/photo-1597452485669-2c7bb5fef90d?q=80&w=800", 
+    name: "IRON UNICORN", 
+    desc: "Die ultimative Legende." 
+  },
 };
 
 const mockExercises = [

@@ -5,34 +5,42 @@ import { EVOLUTION_STAGES } from "../constants";
 
 /**
  * Ermittelt das passende statische Bild basierend auf dem Level.
+ * Durchläuft die Schwellenwerte abwärts.
  */
 export function getStaticEvolutionImage(level: number): string {
-  if (level >= 75) return EVOLUTION_STAGES[75];
-  if (level >= 50) return EVOLUTION_STAGES[50];
-  if (level >= 25) return EVOLUTION_STAGES[25];
-  if (level >= 10) return EVOLUTION_STAGES[10];
+  const levels = Object.keys(EVOLUTION_STAGES).map(Number).sort((a, b) => b - a);
+  for (const l of levels) {
+    if (level >= l) return EVOLUTION_STAGES[l].url;
+  }
+  return EVOLUTION_STAGES[1].url;
+}
+
+/**
+ * Ermittelt die Stufen-Informationen für die UI.
+ */
+export function getEvolutionInfo(level: number) {
+  const levels = Object.keys(EVOLUTION_STAGES).map(Number).sort((a, b) => b - a);
+  for (const l of levels) {
+    if (level >= l) return EVOLUTION_STAGES[l];
+  }
   return EVOLUTION_STAGES[1];
 }
 
 /**
  * Generiert ein Einhorn-Avatar. 
- * Versucht KI-Generierung, falls ein Key vorhanden ist, nutzt sonst die statische Evolution.
  */
 export async function generateUnicornAvatar(stats: UserStats, forceAI: boolean = false): Promise<string | null> {
   const { level, isStrongStart } = stats;
 
-  // Standard-Fall: Statisches Bild (Quota-safe & schnell)
   if (!forceAI && !process.env.API_KEY) {
     return getStaticEvolutionImage(level);
   }
 
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const physique = (isStrongStart || level > 10) ? "extremely massive bodybuilding muscles" : "athletic muscular physique";
-    const prompt = `Full body shot of a muscular anthropomorphic unicorn standing on two legs, ${physique}, heroic pose, dark epic fitness gym background, cinematic lighting, 3d digital art style, high resolution, masterpiece.`;
+    const physique = (isStrongStart || level > 30) ? "monstrous bodybuilder physique" : "defined muscular athlete";
+    const prompt = `Epic full body shot of a muscular anthropomorphic unicorn standing upright, ${physique}, heroic god-like pose, dark mystical gym environment, cinematic volumetric lighting, 8k resolution, photorealistic digital art.`;
 
-    console.log("AVATAR: Requesting AI generation...");
-    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts: [{ text: prompt }] },
@@ -48,10 +56,9 @@ export async function generateUnicornAvatar(stats: UserStats, forceAI: boolean =
       }
     }
   } catch (error: any) {
-    console.warn("AI Generation failed, falling back to static evolution.", error.message);
+    console.warn("AI Fallback active.");
   }
 
-  // Fallback zu statischem Bild bei Fehlern
   return getStaticEvolutionImage(level);
 }
 
