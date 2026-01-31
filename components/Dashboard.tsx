@@ -13,7 +13,6 @@ interface DashboardProps {
   onSelectWorkout: (day: WorkoutDay) => void;
 }
 
-// Fixed: Define AIStudio interface and use it in Window augmentation to match the pre-existing global type.
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
@@ -29,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [previewDay, setPreviewDay] = useState<WorkoutDay | null>(null);
   const [isKeySelected, setIsKeySelected] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loadingText, setLoadingText] = useState("Magie wird gewirkt...");
 
   const checkKeyStatus = async () => {
     if (window.aistudio) {
@@ -42,50 +41,27 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
     }
   };
 
-  const handleOpenKeySelector = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
-      // Per instructions: assume success after triggering the dialog
-      setIsKeySelected(true);
-      setErrorMessage(null);
-      refreshAvatar();
-    }
-  };
-
-  const refreshAvatar = async () => {
+  const refreshAvatar = async (forceAI: boolean = false) => {
     if (avatarLoading) return;
     setAvatarLoading(true);
-    setErrorMessage(null);
+    
+    // Simuliere "KI-Berechnung" für das Feeling
+    const texts = ["Analysiere Muskelfasern...", "Hörner werden geschärft...", "Testosteron-Spiegel steigt...", "Evolution wird eingeleitet..."];
+    let i = 0;
+    const interval = setInterval(() => {
+      setLoadingText(texts[i % texts.length]);
+      i++;
+    }, 600);
+
     try {
-      const url = await generateUnicornAvatar(stats);
+      const url = await generateUnicornAvatar(stats, forceAI);
       if (url) {
         onUpdateStats({ avatarUrl: url });
-      } else {
-        // If it returns null without throwing, usually a generation failure but not a quota error
-        setErrorMessage("Generierung fehlgeschlagen. Versuche es später erneut.");
       }
     } catch (e: any) {
-      const errorMsg = e?.message || String(e);
-      console.error("Avatar refresh failed:", errorMsg);
-
-      // Handle Quota/Billing errors specifically
-      if (errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED") || errorMsg.includes("billing")) {
-        setErrorMessage("Quota erschöpft oder kein Billing aktiv. Ein eigener API-Key ist erforderlich.");
-        setIsKeySelected(false);
-        // Automatically prompt for key selection if possible
-        if (window.aistudio) {
-          handleOpenKeySelector();
-        }
-      } else if (errorMsg.includes("Requested entity was not found")) {
-        // Reset key state per guidelines
-        setIsKeySelected(false);
-        if (window.aistudio) {
-          handleOpenKeySelector();
-        }
-      } else {
-        setErrorMessage("Ein Fehler ist aufgetreten.");
-      }
+      console.error("Avatar refresh failed:", e);
     } finally {
+      clearInterval(interval);
       setAvatarLoading(false);
     }
   };
@@ -143,40 +119,27 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
                           <i className="fa-solid fa-circle-notch fa-spin text-4xl text-purple-500"></i>
                         </div>
                       </div>
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] animate-bounce text-center">Magie wird gewirkt...</p>
+                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-[0.2em] text-center">{loadingText}</p>
                     </div>
                   ) : stats.avatarUrl ? (
                     <img src={stats.avatarUrl} alt="Your Unicorn" className="w-full h-full object-cover animate-in fade-in duration-1000" />
                   ) : (
                     <div className="text-center p-6 flex flex-col items-center gap-4">
                       <i className="fa-solid fa-wand-magic-sparkles text-5xl text-white/10"></i>
-                      <div className="space-y-4">
-                        <p className="text-xs text-gray-400 font-bold px-4">{errorMessage || "Avatar nicht bereit"}</p>
-                        {window.aistudio && (!isKeySelected || errorMessage?.includes("Quota")) ? (
-                          <button 
-                            onClick={handleOpenKeySelector}
-                            className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] uppercase font-black transition-all shadow-lg"
-                          >
-                            <i className="fa-solid fa-key mr-2"></i> Eigenen Key auswählen
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={refreshAvatar}
-                            className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] uppercase font-black transition-all"
-                          >
-                            Magie erneut versuchen
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[9px] text-gray-600 max-w-[150px]">
-                        Tipp: Besuche <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline">ai.google.dev/billing</a> für Infos zum API-Key.
-                      </p>
+                      <button 
+                        onClick={() => refreshAvatar()}
+                        className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] uppercase font-black transition-all"
+                      >
+                        Avatar laden
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
               
               <h2 className="text-3xl font-oswald uppercase font-black tracking-tighter">Level {stats.level}</h2>
+              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-[0.3em] mb-4">Evolution Stage {Math.floor(stats.level/20) + 1}</p>
+              
               <div className="w-full mt-4 space-y-2">
                 <div className="flex justify-between text-[10px] font-bold uppercase text-gray-500 tracking-tighter">
                   <span>Nächste Evolution</span>
@@ -185,6 +148,15 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
                 <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
                   <div className="unicorn-gradient h-full transition-all duration-1000" style={{ width: `${progressToNextEvo}%` }}></div>
                 </div>
+              </div>
+
+              <div className="mt-8 pt-8 border-t border-white/5 w-full">
+                <button 
+                  onClick={() => refreshAvatar(true)}
+                  className="text-[9px] text-gray-600 hover:text-purple-400 uppercase font-bold tracking-widest transition-colors"
+                >
+                  <i className="fa-solid fa-microchip mr-1"></i> Custom AI Generation (Beta)
+                </button>
               </div>
             </div>
 

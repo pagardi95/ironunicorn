@@ -1,55 +1,62 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { UserStats } from "../types";
+import { EVOLUTION_STAGES } from "../constants";
 
 /**
- * Generates a unicorn avatar based on user stats.
- * Uses gemini-2.5-flash-image as the default image generation model.
+ * Ermittelt das passende statische Bild basierend auf dem Level.
  */
-export async function generateUnicornAvatar(stats: UserStats): Promise<string | null> {
-  // Always create instance inside call to use most up-to-date API key
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  const { level, isStrongStart } = stats;
-  
-  // Define prompt based on user evolution level.
-  const physique = (isStrongStart || level > 10) ? "extremely massive bodybuilding muscles" : "athletic muscular physique";
-  const prompt = `Full body shot of a muscular anthropomorphic unicorn standing on two legs, ${physique}, heroic pose, dark epic fitness gym background, cinematic lighting, 3d digital art style, high resolution, masterpiece.`;
+export function getStaticEvolutionImage(level: number): string {
+  if (level >= 75) return EVOLUTION_STAGES[75];
+  if (level >= 50) return EVOLUTION_STAGES[50];
+  if (level >= 25) return EVOLUTION_STAGES[25];
+  if (level >= 10) return EVOLUTION_STAGES[10];
+  return EVOLUTION_STAGES[1];
+}
 
-  console.log("AVATAR: Requesting generation from gemini-2.5-flash-image...");
-  
-  // We do not wrap this in a try-catch here so the caller (Dashboard) can catch and identify 429/quota errors
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [{ text: prompt }]
-    },
-    config: {
-      imageConfig: {
-        aspectRatio: "1:1"
+/**
+ * Generiert ein Einhorn-Avatar. 
+ * Versucht KI-Generierung, falls ein Key vorhanden ist, nutzt sonst die statische Evolution.
+ */
+export async function generateUnicornAvatar(stats: UserStats, forceAI: boolean = false): Promise<string | null> {
+  const { level, isStrongStart } = stats;
+
+  // Standard-Fall: Statisches Bild (Quota-safe & schnell)
+  if (!forceAI && !process.env.API_KEY) {
+    return getStaticEvolutionImage(level);
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const physique = (isStrongStart || level > 10) ? "extremely massive bodybuilding muscles" : "athletic muscular physique";
+    const prompt = `Full body shot of a muscular anthropomorphic unicorn standing on two legs, ${physique}, heroic pose, dark epic fitness gym background, cinematic lighting, 3d digital art style, high resolution, masterpiece.`;
+
+    console.log("AVATAR: Requesting AI generation...");
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: { parts: [{ text: prompt }] },
+      config: { imageConfig: { aspectRatio: "1:1" } }
+    });
+
+    const candidate = response.candidates?.[0];
+    if (candidate?.content?.parts) {
+      for (const part of candidate.content.parts) {
+        if (part.inlineData?.data) {
+          return `data:image/png;base64,${part.inlineData.data}`;
+        }
       }
     }
-  });
-
-  const candidate = response.candidates?.[0];
-  if (!candidate || !candidate.content || !candidate.content.parts) {
-    console.error("AVATAR ERROR: Invalid response structure.", response);
-    return null;
+  } catch (error: any) {
+    console.warn("AI Generation failed, falling back to static evolution.", error.message);
   }
 
-  // Iterate through parts to find image data
-  for (const part of candidate.content.parts) {
-    if (part.inlineData && part.inlineData.data) {
-      console.log("AVATAR SUCCESS: Image data received.");
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-
-  return null;
+  // Fallback zu statischem Bild bei Fehlern
+  return getStaticEvolutionImage(level);
 }
 
 /**
  * Generates a motivational fitness tip.
- * Uses gemini-3-flash-preview for basic text tasks.
  */
 export async function getUnicornWisdomPrompt(topic: string): Promise<string> {
   try {
@@ -60,7 +67,6 @@ export async function getUnicornWisdomPrompt(topic: string): Promise<string> {
     });
     return response.text || "Konsistenz schlägt Talent.";
   } catch (error) {
-    console.error("WISDOM ERROR:", error);
     return "Dein Horn wächst mit jedem Satz.";
   }
 }

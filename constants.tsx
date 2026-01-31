@@ -14,6 +14,15 @@ export const UNICORN_WISDOM = [
   { title: "Intensität", text: "Wähle das Gewicht so, dass die letzte Wiederholung ein Kampf zwischen dir und deinem inneren Pony ist." },
 ];
 
+// Statische Bilder für die Evolution (Ersetze diese URLs durch deine hochgeladenen Assets)
+export const EVOLUTION_STAGES = {
+  1: "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=800&auto=format&fit=crop", // Stufe 1: Schlank/Beginner
+  10: "https://images.unsplash.com/photo-1598971861713-54ad16a7e718?q=80&w=800&auto=format&fit=crop", // Stufe 2: Athletisch
+  25: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=800&auto=format&fit=crop", // Stufe 3: Kraftvoll
+  50: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=800&auto=format&fit=crop", // Stufe 4: Beast Mode
+  75: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop", // Stufe 5: Titan / Iron Unicorn
+};
+
 const mockExercises = [
   { id: '1', name: 'Kniebeugen (Squats)', sets: 4, reps: '8-10', weightHint: 'Letzte Rep gerade noch möglich' },
   { id: '2', name: 'Bankdrücken', sets: 3, reps: '10', weightHint: 'Konzentrische Phase kontrolliert' },
