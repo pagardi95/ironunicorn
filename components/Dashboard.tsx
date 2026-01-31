@@ -13,12 +13,10 @@ interface DashboardProps {
   onSelectWorkout: (day: WorkoutDay) => void;
 }
 
+// Fix: Use the globally available AIStudio type and ensure modifiers match existing environment declarations.
 declare global {
   interface Window {
-    aistudio: {
-      hasSelectedApiKey: () => Promise<boolean>;
-      openSelectKey: () => Promise<void>;
-    };
+    aistudio?: AIStudio;
   }
 }
 
@@ -140,7 +138,9 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
                           </button>
                         )}
                       </div>
-                      <p className="text-[9px] text-gray-600 max-w-[150px]">Tipp: Ein gültiger API-Key mit Billing ist für die Bildgenerierung nötig.</p>
+                      <p className="text-[9px] text-gray-600 max-w-[150px]">
+                        Tipp: Ein gültiger API-Key aus einem <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline">Projekt mit Abrechnung</a> ist nötig.
+                      </p>
                     </div>
                   )}
                 </div>
