@@ -2,10 +2,17 @@
 import { GoogleGenAI } from "@google/genai";
 import { UserStats } from "../types";
 
+const isValidEnv = (val: any): val is string => {
+  return typeof val === 'string' && val.length > 0 && val !== 'undefined' && val !== 'null';
+};
+
 const getApiKey = (): string => {
   try {
-    if (typeof process !== 'undefined' && (process.env as any).API_KEY) return (process.env as any).API_KEY;
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_API_KEY) return (import.meta as any).env.VITE_API_KEY;
+    const metaKey = (import.meta as any).env?.VITE_API_KEY || (import.meta as any).env?.API_KEY;
+    if (isValidEnv(metaKey)) return metaKey;
+
+    const procKey = (process.env as any).API_KEY || (process.env as any).VITE_API_KEY;
+    if (isValidEnv(procKey)) return procKey;
   } catch (e) {}
   return "";
 };
@@ -13,7 +20,7 @@ const getApiKey = (): string => {
 export async function generateUnicornAvatar(stats: UserStats): Promise<string | null> {
   const apiKey = getApiKey();
   if (!apiKey) {
-    console.warn("API_KEY fehlt - Avatar-Generierung übersprungen.");
+    console.warn("Avatar-Generierung übersprungen: Kein API_KEY konfiguriert.");
     return null;
   }
 
@@ -23,12 +30,9 @@ export async function generateUnicornAvatar(stats: UserStats): Promise<string | 
     
     let baseDescription = "A muscular, anthropomorphic unicorn standing on two legs like a bodybuilder. Dark background, epic lighting, cinematic style. No kitsch, pure power.";
     
-    let physicality = "";
-    if (isStrongStart || level > 15) {
-      physicality = "extremely muscular, vascular physique, pro-bodybuilder proportions.";
-    } else {
-      physicality = "lean but athletic physique, beginning muscle definition, slim waist.";
-    }
+    let physicality = (isStrongStart || level > 15) 
+      ? "extremely muscular, vascular physique, pro-bodybuilder proportions." 
+      : "lean but athletic physique, beginning muscle definition, slim waist.";
 
     let details = "";
     if (evolution.chest > 50) details += " Massive pectoral muscles.";
@@ -61,7 +65,7 @@ export async function generateUnicornAvatar(stats: UserStats): Promise<string | 
     }
     return null;
   } catch (error) {
-    console.error("Error generating avatar:", error);
+    console.error("Fehler bei der Avatar-Generierung:", error);
     return null;
   }
 }

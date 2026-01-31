@@ -2,25 +2,38 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Sicherer Zugriff auf Umgebungsvariablen für verschiedene Plattformen (Vite, Vercel, Node).
+ * Hilfsfunktion zur Prüfung, ob ein Wert eine gültige Umgebungsvariable ist.
+ * Filtert falsy Werte und Platzhalter-Strings aus.
  */
+const isValidEnv = (val: any): val is string => {
+  return typeof val === 'string' && 
+         val.length > 0 && 
+         val !== 'undefined' && 
+         val !== 'null' && 
+         val !== '[object Object]';
+};
+
 const getEnvVar = (name: string): string | undefined => {
   try {
-    // 1. Vite / Vercel Define-Ersatz (Wichtig für statische Ersetzung)
-    if (name === 'VITE_SUPABASE_URL' && typeof process !== 'undefined' && (process.env as any).VITE_SUPABASE_URL) return (process.env as any).VITE_SUPABASE_URL;
-    if (name === 'VITE_SUPABASE_ANON_KEY' && typeof process !== 'undefined' && (process.env as any).VITE_SUPABASE_ANON_KEY) return (process.env as any).VITE_SUPABASE_ANON_KEY;
+    // 1. Check import.meta.env (Vite standard)
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+      const val = (import.meta as any).env[name];
+      if (isValidEnv(val)) return val;
+    }
 
-    // 2. Vite standard (import.meta.env)
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[name]) {
-      return (import.meta as any).env[name];
+    // 2. Check process.env (Vercel/Node standard)
+    if (typeof process !== 'undefined' && process.env) {
+      const val = (process.env as any)[name];
+      if (isValidEnv(val)) return val;
     }
     
-    // 3. Fallback auf direktes window/global Objekt, falls dort injiziert
-    if (typeof window !== 'undefined' && (window as any)._env_ && (window as any)._env_[name]) {
-      return (window as any)._env_[name];
+    // 3. Fallback auf window._env_
+    if (typeof window !== 'undefined' && (window as any)._env_) {
+      const val = (window as any)._env_[name];
+      if (isValidEnv(val)) return val;
     }
   } catch (e) {
-    // Falls Zugriff blockiert ist, leise fehlschlagen
+    console.warn(`Fehler beim Zugriff auf Env-Variable ${name}:`, e);
   }
   return undefined;
 };
@@ -28,8 +41,15 @@ const getEnvVar = (name: string): string | undefined => {
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
-// Initialisiere den Client nur, wenn beide Werte vorhanden sind.
-// Falls nicht, ist 'supabase' null und die App nutzt das Fallback-Verhalten (localStorage).
-export const supabase = (supabaseUrl && supabaseAnonKey && supabaseUrl !== "undefined" && supabaseAnonKey !== "undefined") 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
-  : null;
+// Initialisiere den Client nur mit validen Daten.
+// Falls Keys fehlen, bleibt supabase null und die App nutzt LocalStorage.
+let supabaseInstance = null;
+if (supabaseUrl && supabaseAnonKey) {
+  try {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+  } catch (err) {
+    console.error("Supabase konnte nicht initialisiert werden:", err);
+  }
+}
+
+export const supabase = supabaseInstance;
