@@ -11,7 +11,8 @@ interface WorkoutViewProps {
 }
 
 const WorkoutView: React.FC<WorkoutViewProps> = ({ stats, onFinish, setRoute, dayOverride }) => {
-  const [currentDay] = useState(dayOverride || MOCK_PLANS[0].days[0]);
+  const currentPlan = MOCK_PLANS.find(p => p.id === stats.selectedPlanId) || MOCK_PLANS[0];
+  const [currentDay] = useState(dayOverride || currentPlan.days[0]);
   const [exercises, setExercises] = useState<Exercise[]>(
     currentDay.exercises.map(ex => ({ ...ex, completed: false }))
   );
@@ -32,7 +33,7 @@ const WorkoutView: React.FC<WorkoutViewProps> = ({ stats, onFinish, setRoute, da
   const handleFinish = () => {
     setIsFinishing(true);
     setTimeout(() => {
-      onFinish(75); // Slightly more XP for targeted workouts
+      onFinish(75); 
       setRoute(AppRoute.DASHBOARD);
     }, 2000);
   };
@@ -59,7 +60,7 @@ const WorkoutView: React.FC<WorkoutViewProps> = ({ stats, onFinish, setRoute, da
     <div className="pt-24 pb-20 px-6 max-w-2xl mx-auto space-y-8 animate-in slide-in-from-right duration-300">
       <header className="flex justify-between items-end">
         <div>
-          <h2 className="text-sm text-purple-400 font-bold uppercase tracking-widest">{MOCK_PLANS[0].title}</h2>
+          <h2 className="text-sm text-purple-400 font-bold uppercase tracking-widest">{currentPlan.title}</h2>
           <h3 className="text-4xl font-oswald uppercase font-black tracking-tight">{currentDay.name}</h3>
         </div>
         <button 

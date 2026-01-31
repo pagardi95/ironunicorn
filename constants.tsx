@@ -14,10 +14,6 @@ export const UNICORN_WISDOM = [
   { title: "Intensität", text: "Wähle das Gewicht so, dass die letzte Wiederholung ein Kampf zwischen dir und deinem inneren Pony ist." },
 ];
 
-/**
- * 10 Evolution-Stages gemappt auf 100 Level.
- * Diese Bilder sind heroische Stallions als Fallback für die KI.
- */
 export const EVOLUTION_STAGES: Record<number, { url: string; name: string; desc: string }> = {
   1: { 
     url: "https://images.unsplash.com/photo-1534073737927-85f1dfed1a5d?auto=format&fit=crop&q=80&w=800", 
@@ -71,33 +67,62 @@ export const EVOLUTION_STAGES: Record<number, { url: string; name: string; desc:
   },
 };
 
-const mockExercises = [
-  { id: '1', name: 'Kniebeugen (Squats)', sets: 4, reps: '8-10', weightHint: 'Letzte Rep gerade noch möglich' },
-  { id: '2', name: 'Bankdrücken', sets: 3, reps: '10', weightHint: 'Konzentrische Phase kontrolliert' },
-  { id: '3', name: 'Kreuzheben', sets: 5, reps: '5', weightHint: 'Kraftfokus, Technik vor Gewicht' },
+const beginnerEx = [
+  { id: 'b1', name: 'Kniebeugen (Leicht)', sets: 3, reps: '12-15', weightHint: 'Fokus auf saubere Technik' },
+  { id: 'b2', name: 'Liegestütze', sets: 3, reps: 'Max', weightHint: 'Brust voll dehnen' },
+  { id: 'b3', name: 'Plank', sets: 3, reps: '45s', weightHint: 'Core fest anspannen' },
+];
+
+const interEx = [
+  { id: 'i1', name: 'Back Squats', sets: 4, reps: '8-10', weightHint: 'Kontrollierte Abwärtsphase' },
+  { id: 'i2', name: 'Bankdrücken', sets: 4, reps: '6-8', weightHint: 'Explosiv nach oben' },
+  { id: 'i3', name: 'Rudern vorgebeugt', sets: 3, reps: '10-12', weightHint: 'Rücken gerade halten' },
+];
+
+const advancedEx = [
+  { id: 'a1', name: 'Heavy Deadlift', sets: 5, reps: '3-5', weightHint: 'Maximale Kraftentfaltung' },
+  { id: 'a2', name: 'Weighted Pullups', sets: 4, reps: '6-8', weightHint: 'Zusatzgewicht am Gürtel' },
+  { id: 'a3', name: 'Overhead Press', sets: 4, reps: '5', weightHint: 'Kein Schwung aus den Beinen' },
 ];
 
 export const MOCK_PLANS: TrainingPlan[] = [
   {
-    id: 'basic-strength',
-    title: 'Basic Strength',
-    durationWeeks: 6,
+    id: 'plan-fohlen',
+    title: 'Fohlen Fundament',
+    durationWeeks: 4,
     focus: 'Strength',
-    description: 'Fundament für massive Kraft. Erstellt von Profi-Powerliftern.',
+    description: 'Perfekt für den Einstieg. Baue deine Basis und lerne die Bewegungsabläufe.',
+    minStrengthScore: 0,
+    difficulty: 'Beginner',
     days: [
-      { day: 1, name: 'Lower Body A', exercises: mockExercises },
-      { day: 2, name: 'Upper Body A', exercises: mockExercises },
+      { day: 1, name: 'Ganzkörper A', exercises: beginnerEx },
+      { day: 2, name: 'Ganzkörper B', exercises: beginnerEx },
     ]
   },
   {
-    id: 'hypertrophy-max',
-    title: 'Hypertrophy Pro',
+    id: 'plan-stallion',
+    title: 'Stallion Strength',
+    durationWeeks: 8,
+    focus: 'Strength',
+    description: 'Mittelschweres Training für Einhörner, die das Eisen bereits kennen.',
+    minStrengthScore: 1.5,
+    difficulty: 'Intermediate',
+    days: [
+      { day: 1, name: 'Lower Body Focus', exercises: interEx },
+      { day: 2, name: 'Upper Body Focus', exercises: interEx },
+    ]
+  },
+  {
+    id: 'plan-legend',
+    title: 'Iron Legend',
     durationWeeks: 12,
     focus: 'Hypertrophy',
-    description: 'Maximaler Muskelaufbau mit Volumen-Fokus.',
+    description: 'Das ultimative Programm für Fortgeschrittene. Maximale Lasten, maximaler Stolz.',
+    minStrengthScore: 2.5,
+    difficulty: 'Advanced',
     days: [
-      { day: 1, name: 'Chest & Back', exercises: mockExercises },
-      { day: 2, name: 'Legs & Core', exercises: mockExercises },
+      { day: 1, name: 'Push / Pull Heavy', exercises: advancedEx },
+      { day: 2, name: 'Legs / Core Heavy', exercises: advancedEx },
     ]
   }
 ];

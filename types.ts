@@ -23,6 +23,8 @@ export interface TrainingPlan {
   durationWeeks: number;
   focus: 'Strength' | 'Hypertrophy';
   description: string;
+  minStrengthScore: number; // (Squat + Bench + Deadlift) / Bodyweight
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Elite';
   days: WorkoutDay[];
 }
 
@@ -55,6 +57,7 @@ export interface UserStats {
   streak: number;
   totalWorkouts: number;
   avatarUrl?: string;
+  selectedPlanId?: string; // New: Tracks which plan is currently active
   lifts: Lifts;
   evolution: EvolutionParts;
   isStrongStart: boolean;
@@ -68,6 +71,5 @@ export enum AppRoute {
   DASHBOARD = 'dashboard',
   WORKOUT = 'workout',
   LEVEL_100 = 'level100',
-  // Added CHALLENGES route to allow navigation to work
   CHALLENGES = 'challenges'
 }
