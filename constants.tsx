@@ -16,56 +16,56 @@ export const UNICORN_WISDOM = [
 
 /**
  * 10 Evolution-Stages gemappt auf 100 Level.
- * Ersetze die URLs durch deine 10 generierten Bilder.
+ * Diese Bilder sind heroische Stallions als Fallback für die KI.
  */
 export const EVOLUTION_STAGES: Record<number, { url: string; name: string; desc: string }> = {
   1: { 
-    url: "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1534073737927-85f1dfed1a5d?auto=format&fit=crop&q=80&w=800", 
     name: "Das Fohlen", 
     desc: "Der Anfang einer Legende." 
   },
   11: { 
-    url: "https://images.unsplash.com/photo-1598971861713-54ad16a7e718?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?auto=format&fit=crop&q=80&w=800", 
     name: "Der Aufsteiger", 
-    desc: "Erste Fasern werden sichtbar." 
+    desc: "Dein Körper beginnt sich zu stählen." 
   },
   21: { 
-    url: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1598971861713-54ad16a7e718?auto=format&fit=crop&q=80&w=800", 
     name: "Der Athlet", 
-    desc: "Stahlharte Disziplin zahlt sich aus." 
+    desc: "Sichtbare Muskeln und eiserner Wille." 
   },
   31: { 
-    url: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1453229591443-ec59610f6448?auto=format&fit=crop&q=80&w=800", 
     name: "Das Power-Pony", 
-    desc: "Dein Fundament steht." 
+    desc: "Massiv und unaufhaltsam." 
   },
   41: { 
-    url: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1519451241324-20b4ec2c4220?auto=format&fit=crop&q=80&w=800", 
     name: "Der Kraftprotz", 
-    desc: "Die Masse kommt." 
+    desc: "Du beherrscht das Eisen." 
   },
   51: { 
-    url: "https://images.unsplash.com/photo-1541534741688-6078c64b5ec5?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1518467166778-b88f373ffec7?auto=format&fit=crop&q=80&w=800", 
     name: "Der Zerstörer", 
-    desc: "Gewichte erzittern vor dir." 
+    desc: "Nichts steht dir im Weg." 
   },
   61: { 
-    url: "https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1537210249814-b9a10a161ae4?auto=format&fit=crop&q=80&w=800", 
     name: "Das Stall-Monster", 
-    desc: "Du bist kaum noch zu halten." 
+    desc: "Übermenschliche Proportionen." 
   },
   71: { 
-    url: "https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1505315570107-1601a70058e1?auto=format&fit=crop&q=80&w=800", 
     name: "Der Mystiker", 
-    desc: "Das Horn glüht vor Energie." 
+    desc: "Das Horn leuchtet auf." 
   },
   81: { 
-    url: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1549429017-02701107c30a?auto=format&fit=crop&q=80&w=800", 
     name: "Der Halbgott", 
-    desc: "Du beherrschst den Stall." 
+    desc: "Du bist eine Erscheinung aus Stahl." 
   },
   91: { 
-    url: "https://images.unsplash.com/photo-1597452485669-2c7bb5fef90d?q=80&w=800", 
+    url: "https://images.unsplash.com/photo-1511216113906-8f57bb83e776?auto=format&fit=crop&q=80&w=800", 
     name: "IRON UNICORN", 
     desc: "Die ultimative Legende." 
   },
