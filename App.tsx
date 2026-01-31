@@ -19,7 +19,6 @@ const App: React.FC = () => {
     if (saved) return JSON.parse(saved);
     
     return {
-      gender: 'male',
       level: 1,
       xp: 0,
       streak: 0,
@@ -49,12 +48,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleOnboardingComplete = (lifts: Lifts, gender: 'male' | 'female') => {
-    const isStrong = lifts.squat >= lifts.bodyweight && lifts.bodyweight > 0;
+  const handleOnboardingComplete = async (lifts: Lifts) => {
+    const isStrong = lifts.squat >= lifts.bodyweight;
     
     const newStats: UserStats = {
       ...stats,
-      gender,
       lifts,
       onboardingComplete: true,
       isStrongStart: isStrong,
@@ -62,6 +60,10 @@ const App: React.FC = () => {
       evolution: isStrong ? { chest: 40, arms: 40, legs: 45, horn: 10 } : { chest: 10, arms: 10, legs: 10, horn: 5 }
     };
     
+    // Generate initial avatar based on lifts
+    const avatarUrl = await generateUnicornAvatar(newStats);
+    if (avatarUrl) newStats.avatarUrl = avatarUrl;
+
     setStats(newStats);
     setIsLoggedIn(true);
     setRoute(AppRoute.DASHBOARD);
@@ -91,6 +93,7 @@ const App: React.FC = () => {
       }
     };
 
+    // Recalculate level
     updatedStats.level = Math.floor(updatedStats.xp / 100) + (stats.isStrongStart ? 10 : 1);
     
     const newUrl = await generateUnicornAvatar(updatedStats);
@@ -119,6 +122,7 @@ const App: React.FC = () => {
       evolution: newEvolution
     };
 
+    // Auto-complete first workout challenge
     if (updatedStats.totalWorkouts === 1) {
       const c1 = updatedStats.challenges.find(c => c.id === 'c1');
       if (c1 && !c1.completed) {
@@ -127,13 +131,12 @@ const App: React.FC = () => {
       }
     }
 
-    setStats(updatedStats);
-
     if (newLevel > stats.level || updatedStats.totalWorkouts % 3 === 0) {
-      generateUnicornAvatar(updatedStats).then(newUrl => {
-        if (newUrl) setStats(prev => ({ ...prev, avatarUrl: newUrl }));
-      });
+      const newUrl = await generateUnicornAvatar(updatedStats);
+      if (newUrl) updatedStats.avatarUrl = newUrl;
     }
+
+    setStats(updatedStats);
   };
 
   const renderContent = () => {
@@ -142,6 +145,7 @@ const App: React.FC = () => {
         return <LandingPage onStart={handleStartJourney} setRoute={setRoute} />;
       case AppRoute.ONBOARDING:
         return <Onboarding onComplete={handleOnboardingComplete} />;
+      // Handle CHALLENGES route (reusing Dashboard since challenges are integrated there)
       case AppRoute.CHALLENGES:
       case AppRoute.DASHBOARD:
         return (
@@ -155,6 +159,7 @@ const App: React.FC = () => {
         );
       case AppRoute.WORKOUT:
         return <WorkoutView stats={stats} onFinish={handleFinishWorkout} setRoute={setRoute} dayOverride={selectedWorkout} />;
+      // Handle LEVEL_100 mystery page
       case AppRoute.LEVEL_100:
         return (
           <div className="pt-40 px-6 text-center animate-in fade-in zoom-in duration-700">

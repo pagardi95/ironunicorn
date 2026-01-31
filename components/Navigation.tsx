@@ -30,6 +30,12 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, setRoute, isLogge
             >
               Dashboard
             </button>
+            <button 
+              onClick={() => setRoute(AppRoute.CHALLENGES)}
+              className={`text-sm font-semibold uppercase tracking-wider ${currentRoute === AppRoute.CHALLENGES ? 'text-purple-400' : 'text-gray-400'}`}
+            >
+              Challenges
+            </button>
             <div className="w-10 h-10 rounded-full unicorn-gradient p-[2px]">
               <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center">
                  <i className="fa-solid fa-user text-xs"></i>

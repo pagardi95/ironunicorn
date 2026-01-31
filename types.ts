@@ -50,7 +50,6 @@ export interface Challenge {
 }
 
 export interface UserStats {
-  gender: 'male' | 'female';
   level: number;
   xp: number;
   streak: number;
@@ -69,5 +68,6 @@ export enum AppRoute {
   DASHBOARD = 'dashboard',
   WORKOUT = 'workout',
   LEVEL_100 = 'level100',
+  // Added CHALLENGES route to allow navigation to work
   CHALLENGES = 'challenges'
 }
