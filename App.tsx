@@ -20,9 +20,9 @@ const DEFAULT_STATS: UserStats = {
   lifts: { bodyweight: 0, squat: 0, bench: 0, deadlift: 0 },
   evolution: { chest: 10, arms: 10, legs: 10, horn: 5 },
   challenges: [
-    { id: 'c1', title: 'Erstes Training', description: 'Schließe dein erstes Workout ab.', xpReward: 50, completed: false, type: 'consistency' },
-    { id: 'c2', title: 'Double Trouble', description: 'Trainiere 2 Tage hintereinander.', xpReward: 100, completed: false, type: 'streak' },
-    { id: 'c3', title: 'Heavy Hitter', description: 'Logge ein Gewicht > Körpergewicht.', xpReward: 150, completed: false, type: 'lift' }
+    { id: 'c1', title: 'Erstes Training', description: 'Schließe dein erstes Workout ab und betrete den Stall.', xpReward: 50, completed: false, progress: 0, type: 'consistency' },
+    { id: 'c2', title: 'Double Trouble', description: 'Trainiere 2 Tage hintereinander für eiserne Disziplin.', xpReward: 100, completed: false, progress: 0, type: 'streak' },
+    { id: 'c3', title: 'Heavy Hitter', description: 'Logge ein Gewicht (Squat oder Deadlift) über deinem Körpergewicht.', xpReward: 150, completed: false, progress: 0, type: 'lift' }
   ]
 };
 
@@ -58,7 +58,7 @@ const App: React.FC = () => {
   };
 
   const handleOnboardingComplete = async (lifts: Lifts) => {
-    const isStrong = lifts.squat >= (lifts.bodyweight * 1.2); // 1.2x BW für echten Strong Start
+    const isStrong = lifts.squat >= (lifts.bodyweight * 1.2);
     const startLevel = isStrong ? 15 : 1;
     
     const newStats: UserStats = {
@@ -67,7 +67,7 @@ const App: React.FC = () => {
       onboardingComplete: true,
       isStrongStart: isStrong,
       level: startLevel,
-      avatarUrl: getStaticEvolutionImage(startLevel), // Sofort setzen
+      avatarUrl: getStaticEvolutionImage(startLevel),
       evolution: isStrong ? { chest: 30, arms: 30, legs: 40, horn: 10 } : { chest: 10, arms: 10, legs: 10, horn: 5 }
     };
 
@@ -81,47 +81,55 @@ const App: React.FC = () => {
   };
 
   const handleCompleteChallenge = (challengeId: string) => {
-    const challenge = stats.challenges.find(c => c.id === challengeId);
-    if (!challenge || challenge.completed) return;
+    setStats(prev => {
+      const challenge = prev.challenges.find(c => c.id === challengeId);
+      if (!challenge || challenge.completed) return prev;
 
-    const newXp = stats.xp + challenge.xpReward;
+      const newXp = prev.xp + challenge.xpReward;
+      const newLevel = Math.min(100, Math.floor(newXp / 100) + (prev.isStrongStart ? 15 : 1));
+      
+      return {
+        ...prev,
+        challenges: prev.challenges.map(c => c.id === challengeId ? { ...c, completed: true } : c),
+        xp: newXp,
+        level: newLevel,
+        avatarUrl: getStaticEvolutionImage(newLevel)
+      };
+    });
+  };
+
+  const handleFinishWorkout = (xpGained: number) => {
+    const today = new Date().toDateString();
+    const lastWorkout = stats.lastWorkoutDate;
+    
+    let newStreak = stats.streak;
+    if (lastWorkout) {
+      const lastDate = new Date(lastWorkout);
+      const diffTime = Math.abs(new Date(today).getTime() - lastDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        newStreak += 1;
+      } else if (diffDays > 1) {
+        newStreak = 1;
+      }
+    } else {
+      newStreak = 1;
+    }
+
+    const newXp = stats.xp + xpGained;
     const newLevel = Math.min(100, Math.floor(newXp / 100) + (stats.isStrongStart ? 15 : 1));
     
     setStats(prev => ({
       ...prev,
-      challenges: prev.challenges.map(c => c.id === challengeId ? { ...c, completed: true } : c),
       xp: newXp,
       level: newLevel,
-      avatarUrl: getStaticEvolutionImage(newLevel) // Automatisches Update
+      totalWorkouts: prev.totalWorkouts + 1,
+      streak: newStreak,
+      lastWorkoutDate: today,
+      avatarUrl: getStaticEvolutionImage(newLevel)
     }));
-  };
-
-  const handleFinishWorkout = (xpGained: number) => {
-    const newXp = stats.xp + xpGained;
-    const newLevel = Math.min(100, Math.floor(newXp / 100) + (stats.isStrongStart ? 15 : 1));
     
-    const updatedStats: UserStats = {
-      ...stats,
-      xp: newXp,
-      level: newLevel,
-      totalWorkouts: stats.totalWorkouts + 1,
-      streak: stats.streak + 1,
-      avatarUrl: getStaticEvolutionImage(newLevel) // Automatisches Update
-    };
-
-    // Automatische Challenge-Prüfung
-    if (updatedStats.totalWorkouts === 1) {
-      const c1 = updatedStats.challenges.find(c => c.id === 'c1');
-      if (c1 && !c1.completed) {
-        updatedStats.challenges = updatedStats.challenges.map(c => c.id === 'c1' ? {...c, completed: true} : c);
-        updatedStats.xp += c1.xpReward;
-        // Level nach Challenge-XP neu berechnen
-        updatedStats.level = Math.min(100, Math.floor(updatedStats.xp / 100) + (stats.isStrongStart ? 15 : 1));
-        updatedStats.avatarUrl = getStaticEvolutionImage(updatedStats.level);
-      }
-    }
-
-    setStats(updatedStats);
     setRoute(AppRoute.DASHBOARD);
   };
 
@@ -132,7 +140,6 @@ const App: React.FC = () => {
       case AppRoute.ONBOARDING:
         return <Onboarding onComplete={handleOnboardingComplete} />;
       case AppRoute.DASHBOARD:
-      case AppRoute.CHALLENGES:
         return (
           <Dashboard 
             stats={stats} 
@@ -171,7 +178,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-purple-500/30">
       <Navigation currentRoute={route} setRoute={setRoute} isLoggedIn={isLoggedIn} />
       <main>{renderContent()}</main>
-      <footer className="py-10 text-center text-gray-600 text-xs uppercase tracking-widest border-t border-white/5 bg-[#050505]">
+      <footer className="py-10 text-center text-gray-600 text-[10px] uppercase font-black tracking-[0.3em] border-t border-white/5 bg-[#050505]">
         <p>© 2024 Iron Unicorn App — Crafted with Love and Horns 🦄</p>
       </footer>
     </div>

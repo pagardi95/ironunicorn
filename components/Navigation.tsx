@@ -26,26 +26,20 @@ const Navigation: React.FC<NavigationProps> = ({ currentRoute, setRoute, isLogge
           <>
             <button 
               onClick={() => setRoute(AppRoute.DASHBOARD)}
-              className={`text-sm font-semibold uppercase tracking-wider ${currentRoute === AppRoute.DASHBOARD ? 'text-purple-400' : 'text-gray-400'}`}
+              className={`text-xs font-black uppercase tracking-widest transition-colors ${currentRoute === AppRoute.DASHBOARD ? 'text-purple-400' : 'text-gray-500 hover:text-white'}`}
             >
               Dashboard
             </button>
-            <button 
-              onClick={() => setRoute(AppRoute.CHALLENGES)}
-              className={`text-sm font-semibold uppercase tracking-wider ${currentRoute === AppRoute.CHALLENGES ? 'text-purple-400' : 'text-gray-400'}`}
-            >
-              Challenges
-            </button>
-            <div className="w-10 h-10 rounded-full unicorn-gradient p-[2px]">
-              <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center">
-                 <i className="fa-solid fa-user text-xs"></i>
+            <div className="w-9 h-9 rounded-xl unicorn-gradient p-[2px] shadow-lg shadow-purple-500/20">
+              <div className="w-full h-full rounded-xl bg-black overflow-hidden flex items-center justify-center">
+                 <i className="fa-solid fa-user text-[10px]"></i>
               </div>
             </div>
           </>
         ) : (
           <button 
             onClick={() => setRoute(AppRoute.DASHBOARD)}
-            className="bg-white text-black px-5 py-2 rounded-full font-bold text-sm uppercase hover:bg-purple-500 hover:text-white transition-all"
+            className="bg-white text-black px-6 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-purple-500 hover:text-white transition-all tracking-widest"
           >
             Anmelden
           </button>

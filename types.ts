@@ -48,7 +48,8 @@ export interface Challenge {
   description: string;
   xpReward: number;
   completed: boolean;
-  type: 'streak' | 'lift' | 'consistency';
+  progress: number; // 0 to 100
+  type: 'streak' | 'lift' | 'consistency' | 'volume';
 }
 
 export interface UserStats {
@@ -57,12 +58,13 @@ export interface UserStats {
   streak: number;
   totalWorkouts: number;
   avatarUrl?: string;
-  selectedPlanId?: string; // New: Tracks which plan is currently active
+  selectedPlanId?: string;
   lifts: Lifts;
   evolution: EvolutionParts;
   isStrongStart: boolean;
   onboardingComplete: boolean;
   challenges: Challenge[];
+  lastWorkoutDate?: string; // To track streaks
 }
 
 export enum AppRoute {
@@ -70,6 +72,5 @@ export enum AppRoute {
   ONBOARDING = 'onboarding',
   DASHBOARD = 'dashboard',
   WORKOUT = 'workout',
-  LEVEL_100 = 'level100',
-  CHALLENGES = 'challenges'
+  LEVEL_100 = 'level100'
 }
