@@ -13,10 +13,36 @@ interface DashboardProps {
   onSelectWorkout: (day: WorkoutDay) => void;
 }
 
+declare global {
+  interface Window {
+    aistudio: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
+
 const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, onCompleteChallenge, onSelectWorkout }) => {
   const [activeTab, setActiveTab] = useState<'unicorn' | 'records' | 'plan'>('unicorn');
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [previewDay, setPreviewDay] = useState<WorkoutDay | null>(null);
+  const [hasKey, setHasKey] = useState(true);
+
+  const checkKeyStatus = async () => {
+    if (window.aistudio) {
+      const selected = await window.aistudio.hasSelectedApiKey();
+      setHasKey(selected || !!process.env.API_KEY);
+    }
+  };
+
+  const handleOpenKeySelector = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      // Wir gehen davon aus, dass die Auswahl erfolgreich war (Race Condition Handling)
+      setHasKey(true);
+      refreshAvatar();
+    }
+  };
 
   const refreshAvatar = async () => {
     if (avatarLoading) return;
@@ -25,6 +51,9 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
       const url = await generateUnicornAvatar(stats);
       if (url) {
         onUpdateStats({ avatarUrl: url });
+      } else {
+        // Falls kein Bild kommt, könnte es am Key liegen
+        checkKeyStatus();
       }
     } catch (e) {
       console.error("Avatar refresh failed", e);
@@ -34,6 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
   };
 
   useEffect(() => {
+    checkKeyStatus();
     if (!stats.avatarUrl && stats.onboardingComplete) {
       refreshAvatar();
     }
@@ -85,20 +115,32 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, setRoute, onUpdateStats, o
                           <i className="fa-solid fa-circle-notch fa-spin text-4xl text-purple-500"></i>
                         </div>
                       </div>
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] animate-bounce">Magie wird gewirkt...</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] animate-bounce text-center">Magie wird gewirkt...</p>
                     </div>
                   ) : stats.avatarUrl ? (
                     <img src={stats.avatarUrl} alt="Your Unicorn" className="w-full h-full object-cover animate-in fade-in duration-1000" />
                   ) : (
-                    <div className="text-center p-6">
-                      <i className="fa-solid fa-wand-magic-sparkles text-5xl text-white/10 mb-4"></i>
-                      <p className="text-xs text-gray-500 uppercase font-bold mb-4">Kein Bild geladen</p>
-                      <button 
-                        onClick={refreshAvatar}
-                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] uppercase font-black transition-all"
-                      >
-                        Magie aufladen
-                      </button>
+                    <div className="text-center p-6 flex flex-col items-center gap-4">
+                      <i className="fa-solid fa-wand-magic-sparkles text-5xl text-white/10"></i>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-bold mb-2">Avatar nicht bereit</p>
+                        {!hasKey ? (
+                           <button 
+                            onClick={handleOpenKeySelector}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] uppercase font-black transition-all shadow-lg shadow-purple-900/20"
+                          >
+                            <i className="fa-solid fa-key mr-2"></i> API Key einrichten
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={refreshAvatar}
+                            className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] uppercase font-black transition-all"
+                          >
+                            Magie erneut versuchen
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[9px] text-gray-600 max-w-[150px]">Tipp: Ein gültiger API-Key mit Billing ist für die Bildgenerierung nötig.</p>
                     </div>
                   )}
                 </div>

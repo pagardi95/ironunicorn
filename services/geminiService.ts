@@ -3,53 +3,35 @@ import { GoogleGenAI } from "@google/genai";
 import { UserStats } from "../types";
 
 /**
- * Holt den API-Key aus allen möglichen Quellen (Vite, Vercel, Global).
+ * Holt den API-Key. Priorisiert den injizierten Prozess-Key.
  */
 const getApiKey = (): string => {
   try {
-    // 1. Direkt über process.env (Vite 'define' Ersetzung)
-    const envKey = process.env.API_KEY;
-    if (envKey && envKey !== 'undefined' && envKey !== '') return envKey;
-
-    // 2. Über import.meta.env (Vite Standard)
-    const metaKey = (import.meta as any).env?.VITE_API_KEY;
-    if (metaKey && metaKey !== 'undefined' && metaKey !== '') return metaKey;
-
-    // 3. Fallback auf window
-    const winKey = (window as any).process?.env?.API_KEY;
-    if (winKey && winKey !== 'undefined' && winKey !== '') return winKey;
+    const key = (process.env as any).API_KEY || (import.meta as any).env?.VITE_API_KEY || "";
+    return key.trim();
   } catch (e) {
-    console.warn("Fehler beim Zugriff auf API_KEY:", e);
+    return "";
   }
-  return "";
 };
 
 export async function generateUnicornAvatar(stats: UserStats): Promise<string | null> {
   const apiKey = getApiKey();
   
   if (!apiKey) {
-    console.error("AVATAR ERROR: Kein API_KEY gefunden. Bitte in Vercel als API_KEY hinterlegen.");
-    return null;
+    console.warn("AVATAR: Kein API_KEY gefunden. Versuche Generierung ohne expliziten Key (Browser-Injektion)...");
   }
 
-  console.log("AVATAR START: Generiere Einhorn für Level", stats.level);
-
   try {
+    // Erstelle Instanz direkt vor dem Call für aktuellsten Key-Status
     const ai = new GoogleGenAI({ apiKey });
-    const { evolution, level, isStrongStart } = stats;
+    const { level, isStrongStart } = stats;
     
-    // Dynamische Beschreibung basierend auf den Stats
-    let muscleDescription = isStrongStart || level > 10 
-      ? "extremely muscular and vascular bodybuilder physique" 
-      : "athletic and toned muscular physique";
+    // Einfacherer, kraftvoller Prompt um Sicherheitsfilter-Fehlalarme zu vermeiden
+    const physique = (isStrongStart || level > 10) ? "massive bodybuilding muscles" : "athletic muscular physique";
+    const prompt = `Full body shot of a muscular anthropomorphic unicorn standing on two legs, ${physique}, heroic pose, dark epic fitness gym background, cinematic lighting, 3d digital art style, high resolution.`;
+
+    console.log("AVATAR: Sende Request an gemini-2.5-flash-image...");
     
-    let partsDetail = "";
-    if (evolution.chest > 40) partsDetail += " massive pectoral muscles,";
-    if (evolution.arms > 40) partsDetail += " bulging biceps,";
-    if (evolution.horn > 15) partsDetail += " a glowing energy horn,";
-
-    const prompt = `A highly detailed, cinematic, anthropomorphic unicorn standing on two legs. It has an ${muscleDescription}.${partsDetail} Dark epic background with dramatic rim lighting. 3D render style, octane render, masterpiece, no kitsch, pure strength and power.`;
-
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -62,38 +44,41 @@ export async function generateUnicornAvatar(stats: UserStats): Promise<string | 
       }
     });
 
-    console.log("AVATAR RESPONSE: API hat geantwortet.");
+    if (!response.candidates?.[0]) {
+      console.error("AVATAR: Keine Candidates in der Antwort. Möglicherweise durch Sicherheitsfilter blockiert.");
+      return null;
+    }
 
-    // Suche nach dem Bild-Teil in der Antwort
-    const parts = response.candidates?.[0]?.content?.parts;
-    if (parts) {
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          console.log("AVATAR SUCCESS: Bild-Daten empfangen.");
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
+    const parts = response.candidates[0].content.parts;
+    for (const part of parts) {
+      if (part.inlineData?.data) {
+        console.log("AVATAR: Erfolg! Bilddaten empfangen.");
+        return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
 
-    console.error("AVATAR ERROR: Keine Bild-Daten in der API-Antwort gefunden.", response);
+    console.error("AVATAR: Antwort erhalten, aber kein Bild-Part gefunden.", response);
     return null;
   } catch (error: any) {
-    console.error("AVATAR CRITICAL ERROR:", error.message || error);
+    const msg = error.message || String(error);
+    console.error("AVATAR CRITICAL ERROR:", msg);
+    
+    if (msg.includes("Requested entity was not found") || msg.includes("API key not valid")) {
+      console.error("HINWEIS: API Key scheint ungültig zu sein.");
+    }
     return null;
   }
 }
 
 export async function getUnicornWisdomPrompt(topic: string): Promise<string> {
   const apiKey = getApiKey();
-  if (!apiKey) return "Konsistenz ist der Schlüssel zum Erfolg.";
-
   try {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gib mir einen kurzen, motivierenden Fitness-Tipp zum Thema ${topic}. Maximal 15 Wörter. Einhorn-Vibe.`,
+      contents: `Gib mir einen extrem kurzen, motivierenden Fitness-Tipp (max 10 Wörter) zu: ${topic}. Vibe: Kraftvoll, Einhorn-Thematik.`,
     });
-    return response.text || "Dein Horn wächst mit jedem Satz.";
+    return response.text || "Konsistenz schlägt Talent.";
   } catch (error) {
     return "Dein Horn wächst mit jedem Satz.";
   }
